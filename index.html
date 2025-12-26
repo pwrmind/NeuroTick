@@ -20,9 +20,10 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.0/dist/cdn.min.js"></script>
     
     <!-- Sigma.js и зависимости (ИСПРАВЛЕННЫЕ ВЕРСИИ) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.24.0/graphology.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
-    <script src="https://unpkg.com/graphology-layout-forceatlas2@0.10.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphology@0.24.1/dist/graphology.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sigma@2.4.0/dist/sigma.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sigma@2.4.0/dist/plugins/sigma.layouts.forceAtlas2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.0/dist/graphology-layout-forceatlas2.umd.min.js"></script>
     
     <!-- Кастомная конфигурация Tailwind -->
     <script>
@@ -438,7 +439,14 @@
     
     <!-- Основной скрипт приложения (ИСПРАВЛЕННЫЙ) -->
     <script>
-        // Класс нейронной сети NeuroTick (без изменений)
+        // Проверка глобальных переменных
+        if (typeof window !== 'undefined') {
+            window.sigma = window.sigma || null;
+            window.graphology = window.graphology || null;
+            window.forceAtlas2 = window.forceAtlas2 || null;
+        }
+
+        // Класс нейронной сети NeuroTick
         class NeuroTick {
             constructor(numNodes = 130) {
                 this.numNodes = numNodes;
@@ -576,7 +584,7 @@
             }
         }
 
-        // Основное состояние приложения (ИСПРАВЛЕННОЕ)
+        // Основное состояние приложения
         function app() {
             return {
                 isTraining: false,
@@ -760,13 +768,29 @@
                         const container = document.getElementById('sigma-container');
                         if (!container) return;
                         
-                        // ИСПРАВЛЕНО: создаем граф без ошибок
-                        this.graphData = new graphology.Graph({allowSelfLoops: false, multi: false});
+                        // Ждём загрузки библиотек
+                        if (typeof sigma === 'undefined' || typeof graphology === 'undefined') {
+                            this.addLog('Waiting for libraries to load...', 'warning');
+                            await this.sleep(1000);
+                        }
                         
-                        // ИСПРАВЛЕНО: упрощенная конфигурация sigma.js
-                        this.sigmaInstance = new sigma({
-                            graph: this.graphData,
-                            container: 'sigma-container',
+                        if (typeof sigma === 'undefined') {
+                            throw new Error('sigma.js not loaded. Please check your internet connection.');
+                        }
+                        
+                        if (typeof graphology === 'undefined') {
+                            throw new Error('graphology not loaded. Please check your internet connection.');
+                        }
+                        
+                        // Создаём граф
+                        this.graphData = new graphology.Graph();
+                        
+                        // Инициализируем Sigma с правильными параметрами
+                        this.sigmaInstance = new sigma(this.graphData, container, {
+                            renderer: {
+                                container: container,
+                                type: 'canvas'
+                            },
                             settings: {
                                 defaultNodeColor: '#00ff9d',
                                 defaultEdgeColor: '#00e0ff',
@@ -776,20 +800,36 @@
                                 labelSize: 'proportional',
                                 labelSizeRatio: 1,
                                 font: 'JetBrains Mono',
-                                labelColor: { color: '#ffffff' }
+                                labelColor: '#ffffff',
+                                enableEdgeHovering: true,
+                                edgeHoverColor: 'edge',
+                                edgeHoverSizeRatio: 1.5
                             }
                         });
                         
                         // Создаем узлы
                         this.createGraphNodes();
                         
-                        // ИСПРАВЛЕНО: используем правильный layout
+                        // Применяем layout
                         this.applyLayout('force');
                         
                         this.addLog('Sigma.js visualization initialized', 'success');
                     } catch (error) {
                         console.error('Sigma.js initialization error:', error);
                         this.addLog('Failed to initialize visualization: ' + error.message, 'error');
+                        
+                        // Fallback: показать сообщение об ошибке
+                        const container = document.getElementById('sigma-container');
+                        if (container) {
+                            container.innerHTML = `
+                                <div class="h-full flex flex-col items-center justify-center p-4 text-center">
+                                    <i class="fas fa-exclamation-triangle text-neuro-pink text-4xl mb-4"></i>
+                                    <p class="text-neuro-pink font-bold mb-2">Visualization failed to load</p>
+                                    <p class="text-gray-400 text-sm mb-4">${error.message}</p>
+                                    <p class="text-gray-500 text-xs">Check console for details or try refreshing the page.</p>
+                                </div>
+                            `;
+                        }
                     }
                 },
                 
@@ -810,8 +850,8 @@
                             size: nodeSize,
                             color: nodeColor,
                             type: nodeType,
-                            x: Math.random() * 100,
-                            y: Math.random() * 100
+                            x: Math.random() * 100 - 50,
+                            y: Math.random() * 100 - 50
                         });
                     }
                     
@@ -861,25 +901,45 @@
                     const edges = this.graphData.edges();
                     edges.forEach(edge => this.graphData.dropEdge(edge));
                     
-                    // Добавляем новые ребра
+                    // Добавляем новые ребра с проверкой
+                    let addedEdges = 0;
                     connections.forEach(conn => {
                         try {
-                            // ИСПРАВЛЕНО: используем строковые ID
-                            this.graphData.addEdge(
-                                conn.source.toString(), 
-                                conn.target.toString(), 
-                                {
-                                    size: Math.max(conn.weight * 3, 0.5),
-                                    color: this.getEdgeColor(conn.weight)
-                                }
-                            );
+                            const sourceId = conn.source.toString();
+                            const targetId = conn.target.toString();
+                            
+                            // Проверяем, что оба узла существуют
+                            if (this.graphData.hasNode(sourceId) && this.graphData.hasNode(targetId)) {
+                                // Создаём уникальный ключ для ребра
+                                const edgeKey = `${sourceId}-${targetId}`;
+                                
+                                this.graphData.addEdgeWithKey(
+                                    edgeKey,
+                                    sourceId,
+                                    targetId,
+                                    {
+                                        size: Math.max(conn.weight * 3, 0.5),
+                                        color: this.getEdgeColor(conn.weight),
+                                        weight: conn.weight
+                                    }
+                                );
+                                addedEdges++;
+                            }
                         } catch (error) {
-                            // Игнорируем ошибки дублирования ребер
+                            console.debug('Edge creation skipped:', error.message);
                         }
                     });
                     
                     this.activeConnections = connections.length;
-                    this.sigmaInstance.refresh();
+                    
+                    // Обновляем отображение
+                    if (this.sigmaInstance) {
+                        this.sigmaInstance.refresh();
+                    }
+                    
+                    if (addedEdges > 0) {
+                        this.addLog(`Updated graph with ${addedEdges} connections`, 'info');
+                    }
                 },
                 
                 getEdgeColor(weight) {
@@ -906,63 +966,70 @@
                     
                     switch(layoutType) {
                         case 'force':
-                            // ИСПРАВЛЕНО: используем ForceAtlas2 из отдельной библиотеки
-                            if (typeof window.forceAtlas2 === 'function') {
-                                const positions = window.forceAtlas2(this.graphData, {
-                                    settings: {
-                                        gravity: 0.5,
-                                        scalingRatio: 30,
-                                        slowDown: 10,
-                                        barnesHutOptimize: true,
-                                        barnesHutTheta: 0.8,
-                                        adjustSizes: true,
-                                        linLogMode: false,
-                                        outboundAttractionDistribution: false
-                                    },
-                                    iterations: 50
-                                });
-                                
-                                // Применяем позиции
-                                Object.keys(positions).forEach(nodeId => {
-                                    this.graphData.mergeNodeAttributes(nodeId, positions[nodeId]);
-                                });
-                                
-                                if (this.sigmaInstance) this.sigmaInstance.refresh();
-                            } else {
-                                // Fallback: случайное размещение
-                                this.graphData.forEachNode(node => {
-                                    this.graphData.mergeNodeAttributes(node, {
-                                        x: Math.random() * 200 - 100,
-                                        y: Math.random() * 200 - 100
-                                    });
-                                });
-                                if (this.sigmaInstance) this.sigmaInstance.refresh();
-                            }
+                            this.applyForceLayout();
                             break;
                             
                         case 'circular':
-                            const nodes = this.graphData.nodes();
-                            const radius = 100;
-                            nodes.forEach((node, index) => {
-                                const angle = (index / nodes.length) * Math.PI * 2;
-                                this.graphData.mergeNodeAttributes(node, {
-                                    x: Math.cos(angle) * radius,
-                                    y: Math.sin(angle) * radius
-                                });
-                            });
-                            if (this.sigmaInstance) this.sigmaInstance.refresh();
+                            this.applyCircularLayout();
                             break;
                             
                         case 'random':
-                            this.graphData.forEachNode(node => {
-                                this.graphData.mergeNodeAttributes(node, {
-                                    x: Math.random() * 200 - 100,
-                                    y: Math.random() * 200 - 100
-                                });
-                            });
-                            if (this.sigmaInstance) this.sigmaInstance.refresh();
+                            this.applyRandomLayout();
                             break;
                     }
+                    
+                    // Обновляем отображение
+                    if (this.sigmaInstance) {
+                        this.sigmaInstance.refresh();
+                    }
+                },
+                
+                applyForceLayout() {
+                    // Используем forceAtlas2 если доступен, иначе случайное размещение
+                    if (typeof forceAtlas2 !== 'undefined' && window.graphology && window.graphology.layout && window.graphology.layout.forceAtlas2) {
+                        try {
+                            // Запускаем forceAtlas2
+                            window.graphology.layout.forceAtlas2.assign(this.graphData, {
+                                settings: {
+                                    gravity: 1,
+                                    scalingRatio: 30,
+                                    slowDown: 10,
+                                    barnesHutOptimize: true,
+                                    barnesHutTheta: 0.8,
+                                    adjustSizes: true,
+                                    linLogMode: false,
+                                    outboundAttractionDistribution: false
+                                },
+                                iterations: 100
+                            });
+                        } catch (e) {
+                            console.warn('ForceAtlas2 failed, using random layout:', e);
+                            this.applyRandomLayout();
+                        }
+                    } else {
+                        this.applyRandomLayout();
+                    }
+                },
+                
+                applyRandomLayout() {
+                    this.graphData.forEachNode(node => {
+                        this.graphData.mergeNodeAttributes(node, {
+                            x: Math.random() * 200 - 100,
+                            y: Math.random() * 200 - 100
+                        });
+                    });
+                },
+                
+                applyCircularLayout() {
+                    const nodes = this.graphData.nodes();
+                    const radius = 150;
+                    nodes.forEach((node, index) => {
+                        const angle = (index / nodes.length) * Math.PI * 2;
+                        this.graphData.mergeNodeAttributes(node, {
+                            x: Math.cos(angle) * radius,
+                            y: Math.sin(angle) * radius
+                        });
+                    });
                 },
                 
                 resetView() {
