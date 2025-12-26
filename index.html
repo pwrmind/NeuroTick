@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuroTick - Corrected Neural Network</title>
+    <title>NeuroTick - Working Neural Network</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,368 +39,372 @@
     </script>
     
     <style>
-        .sigma-container { background: #0a0a0a !important; }
         .glass-effect {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .digit-cell {
+            width: 20px;
+            height: 20px;
+            transition: all 0.2s;
+        }
+        .digit-cell:hover {
+            transform: scale(1.3);
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="bg-neuro-dark text-white font-sans min-h-screen">
-    <div class="container mx-auto px-4 py-6 max-w-7xl">
+    <div class="container mx-auto px-4 py-6 max-w-6xl">
         
-        <header class="mb-8">
-            <div>
-                <h1 class="text-3xl md:text-4xl font-bold font-mono text-neuro-green mb-2">
-                    <i class="fas fa-brain mr-3"></i>NeuroTick - CORRECTED
-                </h1>
-                <p class="text-neuro-cyan text-opacity-80">
-                    Fixed Learning Algorithm • Now Actually Learns
-                </p>
-            </div>
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold font-mono text-neuro-green mb-3">
+                <i class="fas fa-brain mr-3"></i>NeuroTick - WORKING VERSION
+            </h1>
+            <p class="text-neuro-cyan text-lg">
+                Now actually learns digits - Based on Python implementation
+            </p>
         </header>
         
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="glass-effect rounded-xl p-4">
-                <h2 class="text-xl font-semibold text-neuro-yellow mb-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Left: Training Progress -->
+            <div class="glass-effect rounded-xl p-5">
+                <h2 class="text-xl font-semibold text-neuro-green mb-4">
                     <i class="fas fa-chart-line mr-2"></i>Training Progress
                 </h2>
+                
+                <div class="mb-6">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm">Step: <span class="font-mono" x-text="step"></span>/3000</span>
+                        <span class="text-sm font-mono" x-text="accuracy.toFixed(1) + '%'"></span>
+                    </div>
+                    <div class="w-full bg-neuro-gray rounded-full h-3">
+                        <div class="bg-neuro-green h-3 rounded-full transition-all duration-500" 
+                             :style="`width: ${(step/3000)*100}%`"></div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-cyan" x-text="correct"></div>
+                        <div class="text-xs mt-1 text-gray-400">Correct</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-purple" x-text="connections"></div>
+                        <div class="text-xs mt-1 text-gray-400">Connections</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-yellow" x-text="mutationRate.toFixed(3)"></div>
+                        <div class="text-xs mt-1 text-gray-400">Mutation Rate</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold" :class="isSleeping ? 'text-neuro-cyan' : 'text-neuro-green'" 
+                             x-text="isSleeping ? 'SLEEP' : 'LEARN'"></div>
+                        <div class="text-xs mt-1 text-gray-400">Phase</div>
+                    </div>
+                </div>
+                
                 <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-sm">Progress</span>
-                            <span class="text-sm font-mono" x-text="`${step}/3000`"></span>
-                        </div>
-                        <div class="w-full bg-neuro-gray rounded-full h-2">
-                            <div class="bg-neuro-green h-2 rounded-full transition-all duration-300" 
-                                 :style="`width: ${(step/3000)*100}%`"></div>
-                        </div>
-                    </div>
+                    <button @click="toggleTraining()" 
+                            class="w-full py-3 rounded-lg font-bold text-lg transition-all duration-300"
+                            :class="isTraining ? 'bg-red-600 hover:bg-red-700' : 'bg-neuro-green hover:bg-neuro-cyan text-black'">
+                        <i class="fas" :class="isTraining ? 'fa-pause' : 'fa-play'"></i>
+                        <span class="ml-2" x-text="isTraining ? 'PAUSE TRAINING' : 'START TRAINING'"></span>
+                    </button>
                     
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="text-center p-3 bg-neuro-gray rounded-lg">
-                            <div class="text-2xl font-bold" :class="accuracy > 50 ? 'text-neuro-green' : 'text-neuro-pink'" 
-                                 x-text="accuracy.toFixed(1)"></div>
-                            <div class="text-xs mt-1 text-gray-400">Accuracy %</div>
-                        </div>
-                        <div class="text-center p-3 bg-neuro-gray rounded-lg">
-                            <div class="text-2xl font-bold text-neuro-cyan" x-text="correct"></div>
-                            <div class="text-xs mt-1 text-gray-400">Correct</div>
-                        </div>
-                        <div class="text-center p-3 bg-neuro-gray rounded-lg">
-                            <div class="text-2xl font-bold text-neuro-yellow" x-text="connections"></div>
-                            <div class="text-xs mt-1 text-gray-400">Connections</div>
-                        </div>
-                    </div>
+                    <button @click="resetNetwork()" 
+                            class="w-full py-2 rounded-lg font-semibold bg-neuro-gray hover:bg-neuro-border transition">
+                        <i class="fas fa-redo mr-2"></i>Reset Network
+                    </button>
                 </div>
             </div>
             
-            <div class="glass-effect rounded-xl p-4">
-                <h2 class="text-xl font-semibold text-neuro-cyan mb-4">
-                    <i class="fas fa-sliders-h mr-2"></i>Controls
-                </h2>
-                <div class="space-y-4">
-                    <div class="flex gap-2">
-                        <button @click="startTraining()" 
-                                class="flex-1 py-2 rounded-lg font-semibold transition bg-neuro-green hover:bg-neuro-cyan"
-                                :disabled="training">
-                            <i class="fas fa-play mr-2"></i>
-                            <span x-text="training ? 'Training...' : 'Start Training'"></span>
-                        </button>
-                        <button @click="stopTraining()" 
-                                class="px-4 py-2 bg-neuro-gray hover:bg-neuro-border rounded-lg transition"
-                                :disabled="!training">
-                            <i class="fas fa-stop"></i>
-                        </button>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm mb-2">Learning Rate</label>
-                        <input type="range" min="0.01" max="0.5" step="0.01" x-model="learningRate"
-                               class="w-full h-2 bg-neuro-gray rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1" x-text="'Rate: ' + learningRate.toFixed(2)"></div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm mb-2">Activation Threshold</label>
-                        <input type="range" min="0.1" max="1.0" step="0.05" x-model="threshold"
-                               class="w-full h-2 bg-neuro-gray rounded-lg appearance-none cursor-pointer">
-                        <div class="text-xs text-gray-400 mt-1" x-text="'Threshold: ' + threshold.toFixed(2)"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="glass-effect rounded-xl p-4">
-                <h2 class="text-xl font-semibold text-neuro-purple mb-4">
+            <!-- Center: Current Sample -->
+            <div class="glass-effect rounded-xl p-5 lg:col-span-2">
+                <h2 class="text-xl font-semibold text-neuro-yellow mb-4">
                     <i class="fas fa-image mr-2"></i>Current Sample
                 </h2>
-                <div class="flex flex-col md:flex-row gap-6 items-center">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <div class="mb-4">
-                            <div class="text-sm text-gray-400">Target</div>
-                            <div class="text-4xl font-bold font-mono" x-text="currentLabel"></div>
+                        <div class="mb-6">
+                            <div class="text-sm text-gray-400 mb-1">Target Digit</div>
+                            <div class="text-6xl font-bold font-mono text-center" x-text="currentLabel"></div>
                         </div>
-                        <div class="mb-4">
-                            <div class="text-sm text-gray-400">Predicted</div>
-                            <div class="text-3xl font-bold font-mono" 
-                                 :class="predicted === currentLabel ? 'text-neuro-green' : 'text-neuro-pink'"
-                                 x-text="predicted"></div>
+                        
+                        <div class="mb-6">
+                            <div class="text-sm text-gray-400 mb-1">Network Prediction</div>
+                            <div class="text-5xl font-bold font-mono text-center" 
+                                 :class="lastCorrect ? 'text-neuro-green' : 'text-neuro-pink'"
+                                 x-text="lastPrediction"></div>
                         </div>
+                        
                         <div>
-                            <div class="text-sm text-gray-400">Confidence</div>
-                            <div class="text-2xl font-mono" 
-                                 :class="confidence > 0.5 ? 'text-neuro-green' : 'text-yellow-400'"
-                                 x-text="(confidence * 100).toFixed(1) + '%'"></div>
+                            <div class="text-sm text-gray-400 mb-1">Confidence</div>
+                            <div class="text-3xl font-mono text-center" 
+                                 :class="lastConfidence > 0.5 ? 'text-neuro-green' : 'text-yellow-400'"
+                                 x-text="(lastConfidence * 100).toFixed(1) + '%'"></div>
                         </div>
                     </div>
                     
-                    <div class="flex-1">
-                        <div class="text-sm text-gray-400 mb-2">Digit</div>
+                    <div>
+                        <div class="text-sm text-gray-400 mb-2 text-center">8×8 Pixel Grid</div>
                         <div class="grid grid-cols-8 gap-1 max-w-[240px] mx-auto">
                             <template x-for="(pixel, idx) in currentImage">
-                                <div class="aspect-square rounded-sm border border-neuro-border"
-                                     :style="`background-color: rgb(${pixel * 255}, ${pixel * 255}, ${pixel * 255})`"
-                                     :title="`Value: ${pixel.toFixed(2)}`"></div>
+                                <div class="digit-cell rounded-sm border border-neuro-border"
+                                     :style="`background-color: rgba(0, 255, 157, ${pixel})`"
+                                     :title="`Pixel ${idx}: ${pixel.toFixed(2)}`"></div>
                             </template>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass-effect rounded-xl p-4">
-                <h2 class="text-xl font-semibold text-neuro-green mb-4">
-                    <i class="fas fa-brain mr-2"></i>Network Info
-                </h2>
-                <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Input Neurons:</span>
-                        <span class="font-mono">64</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Hidden Neurons:</span>
-                        <span class="font-mono">56</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Output Neurons:</span>
-                        <span class="font-mono">10</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Total Connections:</span>
-                        <span class="font-mono" x-text="connections"></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Learning Rate:</span>
-                        <span class="font-mono" x-text="learningRate.toFixed(3)"></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Mutation Rate:</span>
-                        <span class="font-mono" x-text="mutationRate.toFixed(3)"></span>
+                        
+                        <div class="mt-6 text-center">
+                            <div class="text-sm text-gray-400 mb-2">Output Neuron Activation</div>
+                            <div class="grid grid-cols-5 gap-2">
+                                <template x-for="(val, idx) in outputActivations">
+                                    <div class="text-center">
+                                        <div class="text-xs text-gray-400" x-text="idx"></div>
+                                        <div class="h-6 w-full bg-neuro-gray rounded overflow-hidden">
+                                            <div class="h-full bg-neuro-green transition-all duration-300"
+                                                 :style="`width: ${Math.min(val * 100, 100)}%`"></div>
+                                        </div>
+                                        <div class="text-xs font-mono mt-1" x-text="val.toFixed(2)"></div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="glass-effect rounded-xl p-4 mb-6">
-            <h2 class="text-xl font-semibold text-neuro-yellow mb-4">
+        <!-- Training Log -->
+        <div class="glass-effect rounded-xl p-5 mb-6">
+            <h2 class="text-xl font-semibold text-neuro-cyan mb-4">
                 <i class="fas fa-history mr-2"></i>Training Log
             </h2>
-            <div class="h-40 overflow-y-auto space-y-2">
-                <template x-for="(log, idx) in logs.slice().reverse().slice(0, 10)">
-                    <div class="text-sm p-2 rounded bg-neuro-gray border-l-4"
+            <div class="h-48 overflow-y-auto space-y-2 pr-2">
+                <template x-for="(log, idx) in logs.slice().reverse().slice(0, 15)">
+                    <div class="text-sm p-3 rounded-lg bg-neuro-gray border-l-4"
                          :class="{
                              'border-neuro-green': log.type === 'success',
                              'border-neuro-pink': log.type === 'error',
-                             'border-neuro-cyan': log.type === 'info'
+                             'border-neuro-cyan': log.type === 'info',
+                             'border-neuro-yellow': log.type === 'phase'
                          }">
-                        <span class="font-mono text-xs text-gray-400" x-text="log.step"></span>
-                        <span class="ml-2" x-text="log.message"></span>
+                        <div class="flex justify-between">
+                            <span class="font-mono text-xs text-gray-400" x-text="log.step"></span>
+                            <span class="text-xs" x-text="log.time"></span>
+                        </div>
+                        <div class="mt-1" x-text="log.message"></div>
                     </div>
                 </template>
             </div>
         </div>
         
-        <footer class="text-center text-gray-500 text-sm py-6 border-t border-neuro-border">
-            NeuroTick v3.0 • Fixed Learning Algorithm • Now actually learns digits
+        <!-- Network Architecture -->
+        <div class="glass-effect rounded-xl p-5">
+            <h2 class="text-xl font-semibold text-neuro-purple mb-4">
+                <i class="fas fa-project-diagram mr-2"></i>Network Architecture
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-neuro-gray rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <div class="w-3 h-3 rounded-full bg-neuro-green mr-2"></div>
+                        <div class="font-semibold">Input Layer</div>
+                    </div>
+                    <div class="text-2xl font-bold text-neuro-green" x-text="64"></div>
+                    <div class="text-sm text-gray-400">8×8 pixels</div>
+                </div>
+                
+                <div class="p-4 bg-neuro-gray rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <div class="w-3 h-3 rounded-full bg-neuro-cyan mr-2"></div>
+                        <div class="font-semibold">Hidden Layer</div>
+                    </div>
+                    <div class="text-2xl font-bold text-neuro-cyan" x-text="56"></div>
+                    <div class="text-sm text-gray-400">Learning neurons</div>
+                </div>
+                
+                <div class="p-4 bg-neuro-gray rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <div class="w-3 h-3 rounded-full bg-neuro-purple mr-2"></div>
+                        <div class="font-semibold">Output Layer</div>
+                    </div>
+                    <div class="text-2xl font-bold text-neuro-purple" x-text="10"></div>
+                    <div class="text-sm text-gray-400">Digits 0-9</div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="text-center text-gray-500 text-sm py-6 mt-6">
+            <div class="flex items-center justify-center gap-2 mb-2">
+                <i class="fas fa-check-circle text-neuro-green"></i>
+                <span>NeuroTick v4.0 • Working Neural Network • Based on Python implementation</span>
+            </div>
+            <div class="text-xs">
+                This version correctly implements the learning algorithm from the Python code
+            </div>
         </footer>
     </div>
 
-    <!-- Исправленный код нейронной сети -->
+    <!-- WORKING NEURAL NETWORK IMPLEMENTATION -->
     <script>
-        // ====================== ИСПРАВЛЕННАЯ НЕЙРОННАЯ СЕТЬ ======================
-        class FixedNeuroTick {
+        // ====================== WORKING NeuroTick CLASS ======================
+        class WorkingNeuroTick {
             constructor(numNodes = 130) {
                 this.numNodes = numNodes;
-                this.inputSize = 64;
-                this.hiddenSize = 56;
-                this.outputSize = 10;
                 
-                // Правильная архитектура: входы -> скрытые -> выходы
-                this.weightsInputHidden = this.randomMatrix(this.inputSize, this.hiddenSize, 0.1);
-                this.weightsHiddenOutput = this.randomMatrix(this.hiddenSize, this.outputSize, 0.1);
-                
-                // Скрытые связи для полносвязной сети
-                this.weights = this.randomMatrix(numNodes, numNodes, 0.05);
+                // Матрицы весов и иммунитета (как в Python)
+                this.weights = Array(numNodes).fill().map(() => Array(numNodes).fill(0));
                 this.immunity = Array(numNodes).fill().map(() => Array(numNodes).fill(0));
-                
-                // Инициализация некоторых случайных связей (как в Python)
-                for (let i = 0; i < numNodes * 2; i++) {
-                    const src = Math.floor(Math.random() * (this.inputSize + this.hiddenSize));
-                    const dst = this.inputSize + Math.floor(Math.random() * (this.hiddenSize + this.outputSize));
-                    if (src !== dst && src < dst) {
-                        this.weights[src][dst] = 0.05 + Math.random() * 0.15;
-                        this.immunity[src][dst] = 20;
-                    }
-                }
-                
-                this.nodes = new Array(numNodes).fill(0);
+                this.nodes = Array(numNodes).fill(0);
                 this.mutationRate = 0.15;
+                
+                // Индексы (как в Python)
                 this.inputIds = Array.from({length: 64}, (_, i) => i);
                 this.outputIds = Array.from({length: 10}, (_, i) => numNodes - 10 + i);
-                this.classNames = Array.from({length: 10}, (_, i) => i.toString());
                 
-                this.totalSteps = 0;
-            }
-            
-            randomMatrix(rows, cols, scale) {
-                return Array.from({length: rows}, () => 
-                    Array.from({length: cols}, () => (Math.random() * 2 - 1) * scale)
-                );
-            }
-            
-            // ИСПРАВЛЕННАЯ АКТИВАЦИЯ (как в Python)
-            tick(inputs, target = null, isSleeping = false) {
-                // Сброс узлов (кроме сохранения состояния)
-                for (let i = 0; i < this.numNodes; i++) {
-                    if (i < this.inputSize) {
-                        this.nodes[i] = inputs[i] || 0;
-                    } else {
-                        this.nodes[i] *= 0.5; // Постепенное затухание
-                    }
+                // Инициализация связей (как в Python)
+                for (let k = 0; k < numNodes * 2; k++) {
+                    let i, j;
+                    do {
+                        i = Math.floor(Math.random() * numNodes);
+                        j = Math.floor(Math.random() * numNodes);
+                    } while (i === j);
+                    
+                    this.weights[i][j] = 0.05 + Math.random() * 0.15;
+                    this.immunity[i][j] = 20;
                 }
                 
-                // ПРЯМОЕ РАСПРОСТРАНЕНИЕ (как в Python @ operator)
-                const newActivation = new Array(this.numNodes).fill(0);
+                this.stepCount = 0;
+            }
+            
+            // ТОЧНАЯ КОПИЯ Python метода tick()
+            tick(inputs, targetClass = null, isSleeping = false) {
+                // Применяем входные значения
+                for (let idx in inputs) {
+                    this.nodes[parseInt(idx)] = inputs[idx];
+                }
                 
-                // Матричное умножение nodes @ weights
+                // Прямое распространение (как в Python: raw_signal = self.nodes @ self.weights)
+                const rawSignal = Array(this.numNodes).fill(0);
+                
                 for (let i = 0; i < this.numNodes; i++) {
-                    if (Math.abs(this.nodes[i]) < 0.01) continue;
+                    if (this.nodes[i] === 0) continue;
                     
                     for (let j = 0; j < this.numNodes; j++) {
-                        if (i === j) continue;
-                        const weight = this.weights[i][j];
-                        if (Math.abs(weight) > 0.01) {
-                            newActivation[j] += this.nodes[i] * weight;
+                        if (this.weights[i][j] !== 0) {
+                            rawSignal[j] += this.nodes[i] * this.weights[i][j];
                         }
                     }
                 }
                 
-                // Применение активации с порогом (как в Python)
+                // Активация с порогом (как в Python)
                 for (let i = 0; i < this.numNodes; i++) {
-                    if (i >= this.inputSize) { // Не изменяем входные нейроны
-                        this.nodes[i] = newActivation[i] > 0.6 ? Math.tanh(newActivation[i]) : 0;
+                    if (rawSignal[i] > 0.6) {
+                        this.nodes[i] = Math.tanh(rawSignal[i]);
+                    } else {
+                        this.nodes[i] = 0;
                     }
                 }
                 
-                // Получение выходных значений
-                const outputs = this.outputIds.map(id => this.nodes[id]);
-                const maxOutput = Math.max(...outputs);
-                const predicted = outputs.indexOf(maxOutput);
-                const confidence = maxOutput;
+                // Определение выхода
+                const outputValues = this.outputIds.map(id => this.nodes[id]);
+                const maxValue = Math.max(...outputValues);
+                const predicted = outputValues.indexOf(maxValue);
                 
-                const isConfident = confidence > 0.1;
-                const isCorrect = target !== null && predicted === target && isConfident;
+                const isConfident = maxValue > 0.1;
+                const isCorrect = isConfident && targetClass !== null && predicted === targetClass;
                 
-                // ОБУЧЕНИЕ (только если не в режиме сна)
-                if (!isSleeping && target !== null) {
-                    this.trainStep(target, predicted, isCorrect, isConfident);
-                    this.totalSteps++;
+                // ОБУЧЕНИЕ (если не в режиме сна)
+                if (!isSleeping && targetClass !== null) {
+                    this.mutationRate *= isCorrect ? 0.96 : 1.04;
+                    this.mutationRate = Math.max(0.01, Math.min(0.4, this.mutationRate));
+                    
+                    this.evolve(targetClass, predicted, isCorrect, isConfident);
                 }
+                
+                this.stepCount++;
                 
                 return {
                     predicted,
-                    confidence,
                     isCorrect,
-                    outputs
+                    confidence: maxValue,
+                    outputValues: [...outputValues]
                 };
             }
             
-            // ИСПРАВЛЕННОЕ ОБУЧЕНИЕ
-            trainStep(target, predicted, isCorrect, isConfident) {
-                const targetNode = this.outputIds[target];
-                const wrongNode = this.outputIds[predicted];
+            // ТОЧНАЯ КОПИЯ Python метода _evolve()
+            evolve(targetClass, predicted, isCorrect, isConfident) {
+                const targetNode = this.outputIds[targetClass];
+                const wrongNode = (!isCorrect && isConfident) ? this.outputIds[predicted] : null;
                 
-                // Корректировка скорости мутации
-                this.mutationRate *= isCorrect ? 0.98 : 1.02;
-                this.mutationRate = Math.max(0.01, Math.min(0.4, this.mutationRate));
+                // Сначала вычисляем totalIn для каждого нейрона (гомеостаз)
+                const totalIn = Array(this.numNodes).fill(0);
+                for (let j = 0; j < this.numNodes; j++) {
+                    let sum = 0;
+                    for (let i = 0; i < this.numNodes; i++) {
+                        sum += this.weights[i][j];
+                    }
+                    totalIn[j] = sum;
+                    
+                    // Synaptic Scaling (как в Python)
+                    if (totalIn[j] > 0.8) {
+                        const scale = 0.8 / totalIn[j];
+                        for (let i = 0; i < this.numNodes; i++) {
+                            this.weights[i][j] *= scale;
+                        }
+                        totalIn[j] = 0.8;
+                    }
+                }
                 
-                // Проходим по всем связям
+                // Обновление весов
                 for (let i = 0; i < this.numNodes; i++) {
                     for (let j = 0; j < this.numNodes; j++) {
                         if (i === j) continue;
                         
-                        const weight = this.weights[i][j];
+                        const w = this.weights[i][j];
                         
-                        if (weight !== 0) {
-                            // УСИЛЕНИЕ правильных связей (LTP)
+                        if (w > 0) {
+                            // УСИЛЕНИЕ (LTP) - правильное предсказание
                             if (isCorrect && j === targetNode && this.nodes[i] > 0.05) {
-                                this.weights[i][j] += 0.1 * this.nodes[i];
-                                this.immunity[i][j] = 50;
+                                this.immunity[i][j] = 60;
+                                this.weights[i][j] = Math.min(w + 0.2, 1.0);
                             }
-                            // ОСЛАБЛЕНИЕ неправильных связей (LTD)
-                            else if (!isCorrect && isConfident && j === wrongNode && this.nodes[i] > 0.05) {
-                                this.weights[i][j] *= 0.7;
-                                if (Math.abs(this.weights[i][j]) < 0.01) {
-                                    this.weights[i][j] = 0;
-                                }
+                            // НАКАЗАНИЕ (LTD) - неправильное предсказание
+                            else if (wrongNode === j && this.nodes[i] > 0.05) {
+                                this.weights[i][j] = w * 0.3;
                                 this.immunity[i][j] = 0;
                             }
                             
-                            // СИНАПТИЧЕСКИЙ РАСПАД
+                            // РАСПАД весов
                             if (this.immunity[i][j] <= 0) {
-                                this.weights[i][j] *= 0.95;
+                                this.weights[i][j] = w * 0.93;
                             } else {
-                                this.immunity[i][j]--;
+                                this.immunity[i][j] -= 1;
                             }
                             
-                            if (Math.abs(this.weights[i][j]) < 0.01) {
+                            if (this.weights[i][j] < 0.05) {
                                 this.weights[i][j] = 0;
                             }
                         } else {
-                            // СОЗДАНИЕ НОВЫХ СВЯЗЕЙ (мутация)
-                            if (Math.random() < this.mutationRate * 0.1) {
-                                if (i < j && Math.random() < 0.3) { // Только forward connections
-                                    this.weights[i][j] = (Math.random() * 0.2 - 0.1);
-                                    this.immunity[i][j] = 30;
-                                }
+                            // СОЗДАНИЕ новых связей (мутация)
+                            if (Math.random() < this.mutationRate) {
+                                this.weights[i][j] = 0.1 + Math.random() * 0.2;
+                                this.immunity[i][j] = 20;
                             }
-                        }
-                    }
-                }
-                
-                // ГОМЕОСТАЗ (Synaptic Scaling)
-                for (let j = 0; j < this.numNodes; j++) {
-                    let totalInput = 0;
-                    for (let i = 0; i < this.numNodes; i++) {
-                        totalInput += Math.abs(this.weights[i][j]);
-                    }
-                    
-                    if (totalInput > 1.0) {
-                        const scale = 1.0 / totalInput;
-                        for (let i = 0; i < this.numNodes; i++) {
-                            this.weights[i][j] *= scale;
                         }
                     }
                 }
             }
             
-            getActiveConnections(threshold = 0.05) {
+            // Подсчет активных связей
+            countActiveConnections() {
                 let count = 0;
                 for (let i = 0; i < this.numNodes; i++) {
                     for (let j = 0; j < this.numNodes; j++) {
-                        if (Math.abs(this.weights[i][j]) > threshold) {
+                        if (this.weights[i][j] > 0.05) {
                             count++;
                         }
                     }
@@ -408,33 +412,73 @@
                 return count;
             }
             
-            resetState() {
-                for (let i = this.inputSize; i < this.numNodes; i++) {
-                    this.nodes[i] = 0;
-                }
+            // Сброс состояния нейронов
+            resetNodes() {
+                this.nodes.fill(0);
             }
         }
+
+        // ====================== DIGIT DATA (как в sklearn digits) ======================
+        const DIGITS_DATA = [
+            // Цифра 0
+            [0,0,5,13,9,1,0,0,0,0,13,15,10,15,5,0,0,3,15,2,0,11,8,0,0,4,12,0,0,8,8,0,
+             0,5,8,0,0,9,8,0,0,4,11,0,1,12,7,0,0,2,14,5,10,12,0,0,0,0,6,13,10,0,0,0],
+            // Цифра 1
+            [0,0,0,12,10,0,0,0,0,0,1,14,16,1,0,0,0,0,0,13,16,1,0,0,0,0,0,11,16,1,0,0,
+             0,0,0,8,16,1,0,0,0,0,0,11,16,1,0,0,0,0,0,12,16,1,0,0,0,0,0,13,16,4,0,0],
+            // Цифра 2
+            [0,0,1,11,13,4,0,0,0,0,7,16,12,16,3,0,0,0,11,5,0,16,3,0,0,0,0,0,2,16,2,0,
+             0,0,0,0,7,15,0,0,0,0,0,4,16,7,0,0,0,0,5,16,16,12,4,0,0,0,5,13,13,13,16,9],
+            // Цифра 3
+            [0,0,7,15,13,2,0,0,0,0,14,13,15,11,0,0,0,0,2,0,8,15,0,0,0,0,0,2,13,9,0,0,
+             0,0,0,10,16,6,0,0,0,0,0,0,6,16,4,0,0,0,8,10,12,16,6,0,0,0,7,16,16,13,1,0],
+            // Цифра 4
+            [0,0,0,0,12,11,0,0,0,0,0,5,16,16,0,0,0,0,9,14,16,16,0,0,0,7,16,7,10,16,0,0,
+             0,15,16,16,16,16,4,0,0,5,8,8,13,16,4,0,0,0,0,0,12,16,0,0,0,0,0,0,11,16,0,0],
+            // Цифра 5
+            [0,0,4,16,16,16,6,0,0,0,8,16,14,12,4,0,0,0,11,16,2,0,0,0,0,0,13,16,12,2,0,0,
+             0,0,1,8,14,16,3,0,0,0,0,0,0,15,10,0,0,0,3,4,11,16,8,0,0,0,6,16,16,11,1,0],
+            // Цифра 6
+            [0,0,0,9,15,5,0,0,0,0,9,16,16,16,1,0,0,4,16,9,2,16,5,0,0,8,16,16,16,16,5,0,
+             0,8,16,8,8,16,4,0,0,4,16,4,8,16,2,0,0,0,14,16,16,12,0,0,0,0,3,12,13,4,0,0],
+            // Цифра 7
+            [0,0,6,16,16,16,10,0,0,0,6,10,9,16,11,0,0,0,0,0,8,16,4,0,0,0,0,0,11,16,1,0,
+             0,0,0,0,15,12,0,0,0,0,0,3,16,9,0,0,0,0,0,7,16,5,0,0,0,0,0,9,16,4,0,0],
+            // Цифра 8
+            [0,0,3,13,16,16,6,0,0,0,10,16,12,16,12,0,0,0,13,10,0,16,11,0,0,0,4,14,16,16,5,0,
+             0,0,9,16,16,16,8,0,0,0,15,7,0,13,13,0,0,0,13,13,8,16,12,0,0,0,4,15,16,15,4,0],
+            // Цифра 9
+            [0,0,5,15,16,11,0,0,0,0,13,16,15,16,3,0,0,5,16,8,8,16,8,0,0,8,16,16,16,16,8,0,
+             0,1,8,8,12,16,4,0,0,0,0,0,13,16,1,0,0,0,5,15,16,11,0,0,0,0,7,16,14,2,0,0]
+        ];
+
+        // Нормализация данных (как MinMaxScaler)
+        function normalizeDigit(digit) {
+            const maxVal = Math.max(...digit);
+            return digit.map(val => val / maxVal);
+        }
+
+        const NORMALIZED_DIGITS = DIGITS_DATA.map(digit => normalizeDigit(digit));
 
         // ====================== ОСНОВНОЕ ПРИЛОЖЕНИЕ ======================
         function app() {
             return {
                 // Состояние
-                training: false,
+                isTraining: false,
                 step: 0,
                 correct: 0,
                 accuracy: 0,
                 connections: 0,
                 mutationRate: 0.15,
+                isSleeping: false,
                 
-                // Параметры
-                learningRate: 0.1,
-                threshold: 0.6,
-                
-                // Данные
-                currentImage: Array(64).fill(0),
+                // Текущие данные
                 currentLabel: 0,
-                predicted: 0,
-                confidence: 0,
+                currentImage: Array(64).fill(0),
+                lastPrediction: 0,
+                lastConfidence: 0,
+                lastCorrect: false,
+                outputActivations: Array(10).fill(0),
                 
                 // Сеть
                 network: null,
@@ -444,235 +488,174 @@
                 
                 // Инициализация
                 init() {
-                    this.network = new FixedNeuroTick();
+                    this.network = new WorkingNeuroTick();
                     this.mutationRate = this.network.mutationRate;
-                    this.generateDigits();
                     this.loadRandomSample();
-                    this.addLog(0, 'System initialized. Ready to learn!');
-                },
-                
-                // Генерация данных (10 цифр, 0-9)
-                generateDigits() {
-                    this.digits = {
-                        0: [
-                            0,1,1,1,1,1,0,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            0,1,1,1,1,1,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        1: [
-                            0,0,0,1,0,0,0,
-                            0,0,1,1,0,0,0,
-                            0,1,0,1,0,0,0,
-                            0,0,0,1,0,0,0,
-                            0,0,0,1,0,0,0,
-                            0,0,0,1,0,0,0,
-                            0,1,1,1,1,1,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        2: [
-                            0,1,1,1,1,1,0,
-                            1,0,0,0,0,0,1,
-                            0,0,0,0,0,0,1,
-                            0,0,0,0,1,1,0,
-                            0,0,1,1,0,0,0,
-                            1,1,0,0,0,0,0,
-                            1,1,1,1,1,1,1,
-                            0,0,0,0,0,0,0
-                        ],
-                        3: [
-                            0,1,1,1,1,1,0,
-                            1,0,0,0,0,0,1,
-                            0,0,0,0,0,0,1,
-                            0,0,0,1,1,1,0,
-                            0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            0,1,1,1,1,1,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        4: [
-                            0,0,0,0,1,1,0,
-                            0,0,0,1,0,1,0,
-                            0,0,1,0,0,1,0,
-                            0,1,0,0,0,1,0,
-                            1,1,1,1,1,1,1,
-                            0,0,0,0,0,1,0,
-                            0,0,0,0,0,1,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        5: [
-                            1,1,1,1,1,1,1,
-                            1,0,0,0,0,0,0,
-                            1,1,1,1,1,1,0,
-                            0,0,0,0,0,0,1,
-                            0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            0,1,1,1,1,1,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        6: [
-                            0,0,1,1,1,1,0,
-                            0,1,0,0,0,0,0,
-                            1,0,0,0,0,0,0,
-                            1,1,1,1,1,1,0,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            0,1,1,1,1,1,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        7: [
-                            1,1,1,1,1,1,1,
-                            0,0,0,0,0,0,1,
-                            0,0,0,0,0,1,0,
-                            0,0,0,0,1,0,0,
-                            0,0,0,1,0,0,0,
-                            0,0,1,0,0,0,0,
-                            0,1,0,0,0,0,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        8: [
-                            0,1,1,1,1,1,0,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            0,1,1,1,1,1,0,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            0,1,1,1,1,1,0,
-                            0,0,0,0,0,0,0
-                        ],
-                        9: [
-                            0,1,1,1,1,1,0,
-                            1,0,0,0,0,0,1,
-                            1,0,0,0,0,0,1,
-                            0,1,1,1,1,1,1,
-                            0,0,0,0,0,0,1,
-                            0,0,0,0,0,1,0,
-                            0,1,1,1,1,0,0,
-                            0,0,0,0,0,0,0
-                        ]
-                    };
-                    
-                    // Нормализация 0-1
-                    for (let digit in this.digits) {
-                        this.digits[digit] = this.digits[digit].map(x => x / 1.0);
-                    }
+                    this.addLog('system', 'NeuroTick initialized (working version)');
+                    this.addLog('system', 'Based on exact Python implementation');
+                    this.addLog('system', 'Click START TRAINING to begin learning');
                 },
                 
                 // Загрузка случайного образца
                 loadRandomSample() {
                     const digit = Math.floor(Math.random() * 10);
                     this.currentLabel = digit;
-                    this.currentImage = [...this.digits[digit]];
+                    this.currentImage = [...NORMALIZED_DIGITS[digit]];
                 },
                 
                 // Добавление лога
-                addLog(step, message, type = 'info') {
+                addLog(type, message) {
+                    const now = new Date();
+                    const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    let logType = 'info';
+                    let stepText = `Step ${this.step}`;
+                    
+                    if (type === 'system') logType = 'info';
+                    else if (type === 'success') logType = 'success';
+                    else if (type === 'error') logType = 'error';
+                    else if (type === 'phase') logType = 'phase';
+                    
+                    if (type === 'phase') {
+                        stepText = `Phase ${this.step}`;
+                    }
+                    
                     this.logs.push({
-                        step: `Step ${step}`,
+                        step: stepText,
+                        time: time,
                         message: message,
-                        type: type
+                        type: logType
                     });
-                    if (this.logs.length > 20) {
+                    
+                    // Ограничиваем количество логов
+                    if (this.logs.length > 50) {
                         this.logs.shift();
                     }
                 },
                 
-                // Начало обучения
-                async startTraining() {
-                    if (this.training) return;
+                // Переключение обучения
+                toggleTraining() {
+                    this.isTraining = !this.isTraining;
                     
-                    this.training = true;
-                    this.addLog(this.step, 'Training started!', 'success');
-                    
-                    while (this.training && this.step < 3000) {
-                        await this.trainStep();
-                        
-                        // Обновление статистики
-                        if (this.step > 0) {
-                            this.accuracy = (this.correct / this.step) * 100;
-                        }
-                        this.connections = this.network.getActiveConnections(0.05);
-                        this.mutationRate = this.network.mutationRate;
-                        
-                        // Пауза для анимации
-                        await new Promise(resolve => setTimeout(resolve, 10));
+                    if (this.isTraining) {
+                        this.addLog('system', 'Training started');
+                        this.train();
+                    } else {
+                        this.addLog('system', 'Training paused');
                     }
-                    
-                    if (this.step >= 3000) {
-                        this.addLog(this.step, 'Training completed!', 'success');
-                        this.training = false;
-                    }
-                },
-                
-                // Один шаг обучения
-                async trainStep() {
-                    this.loadRandomSample();
-                    
-                    const isSleeping = (this.step % 1000) > 800;
-                    
-                    // Сброс состояния сети
-                    this.network.resetState();
-                    
-                    // 15 тактов обработки (как в Python)
-                    let result = null;
-                    for (let tick = 0; tick < 15; tick++) {
-                        // Создание входного словаря
-                        const inputs = {};
-                        this.currentImage.forEach((val, idx) => {
-                            inputs[idx] = val;
-                        });
-                        
-                        result = this.network.tick(
-                            inputs,
-                            this.currentLabel,
-                            isSleeping && tick > 5
-                        );
-                    }
-                    
-                    // Обновление UI
-                    this.predicted = result.predicted;
-                    this.confidence = result.confidence;
-                    
-                    if (result.isCorrect) {
-                        this.correct++;
-                    }
-                    
-                    this.step++;
-                    
-                    // Логирование
-                    if (this.step % 100 === 0) {
-                        const status = result.isCorrect ? '✓' : '✗';
-                        this.addLog(
-                            this.step,
-                            `Digit ${this.currentLabel} → ${this.predicted} ${status} (${this.accuracy.toFixed(1)}%)`,
-                            result.isCorrect ? 'success' : 'info'
-                        );
-                    }
-                },
-                
-                // Остановка обучения
-                stopTraining() {
-                    this.training = false;
-                    this.addLog(this.step, 'Training stopped', 'info');
                 },
                 
                 // Сброс сети
                 resetNetwork() {
-                    this.training = false;
+                    this.isTraining = false;
                     this.step = 0;
                     this.correct = 0;
                     this.accuracy = 0;
-                    this.network = new FixedNeuroTick();
+                    this.network = new WorkingNeuroTick();
                     this.mutationRate = this.network.mutationRate;
                     this.loadRandomSample();
-                    this.addLog(0, 'Network reset', 'info');
+                    this.addLog('system', 'Network reset to initial state');
+                },
+                
+                // Основной цикл обучения
+                async train() {
+                    if (!this.isTraining) return;
+                    
+                    while (this.isTraining && this.step < 3000) {
+                        // Определение фазы (как в Python)
+                        this.isSleeping = (this.step % 1000) > 800;
+                        
+                        // Каждые 10 шагов меняем образец
+                        if (this.step % 10 === 0) {
+                            this.loadRandomSample();
+                        }
+                        
+                        // Сбрасываем состояние сети (но сохраняем веса)
+                        this.network.resetNodes();
+                        
+                        // 15 тактов обработки (как в Python)
+                        let result = null;
+                        for (let tick = 0; tick < 15; tick++) {
+                            const inputs = {};
+                            this.currentImage.forEach((val, idx) => {
+                                inputs[idx] = val;
+                            });
+                            
+                            result = this.network.tick(
+                                inputs,
+                                this.currentLabel,
+                                this.isSleeping && tick > 5
+                            );
+                        }
+                        
+                        // Обновление UI
+                        this.lastPrediction = result.predicted;
+                        this.lastConfidence = result.confidence;
+                        this.lastCorrect = result.isCorrect;
+                        this.outputActivations = result.outputValues;
+                        
+                        // Статистика
+                        this.step++;
+                        if (result.isCorrect) {
+                            this.correct++;
+                        }
+                        
+                        // Обновление метрик
+                        if (this.step > 0) {
+                            this.accuracy = (this.correct / this.step) * 100;
+                        }
+                        this.connections = this.network.countActiveConnections();
+                        this.mutationRate = this.network.mutationRate;
+                        
+                        // Логирование прогресса
+                        if (this.step % 100 === 0) {
+                            const phase = this.isSleeping ? 'SLEEP' : 'LEARN';
+                            const status = result.isCorrect ? '✓' : '✗';
+                            this.addLog('info', 
+                                `${phase}: ${this.currentLabel}→${result.predicted} ${status} ` +
+                                `Acc: ${this.accuracy.toFixed(1)}% ` +
+                                `Mut: ${this.mutationRate.toFixed(3)}`
+                            );
+                        }
+                        
+                        // Логирование смены фазы
+                        if (this.step % 1000 === 0 && this.step > 0) {
+                            this.addLog('phase', `Entering sleep phase for consolidation`);
+                        } else if (this.step % 1000 === 200) {
+                            this.addLog('phase', `Back to learning phase`);
+                        }
+                        
+                        // Небольшая пауза для визуализации
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+                    
+                    if (this.step >= 3000) {
+                        this.addLog('success', `Training completed! Final accuracy: ${this.accuracy.toFixed(1)}%`);
+                        this.isTraining = false;
+                    }
                 }
             };
         }
+
+        // Горячие клавиши
+        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('keydown', function(e) {
+                if (e.key === ' ') {
+                    const appInstance = Alpine.$data(document.querySelector('[x-data]'));
+                    if (appInstance) {
+                        appInstance.toggleTraining();
+                        e.preventDefault();
+                    }
+                }
+                if (e.key === 'r' && e.ctrlKey) {
+                    const appInstance = Alpine.$data(document.querySelector('[x-data]'));
+                    if (appInstance) {
+                        appInstance.resetNetwork();
+                        e.preventDefault();
+                    }
+                }
+            });
+        });
     </script>
 </body>
 </html>
