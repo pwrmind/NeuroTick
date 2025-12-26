@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en" x-data="app()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroTick SPA - Bionic Neural Network Visualizer</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.0/dist/cdn.min.js"></script>
+    
+    <!-- Sigma.js и зависимости -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/plugins/sigma.layouts.forceAtlas2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/plugins/sigma.renderers.parallelEdges.min.js"></script>
+    
+    <!-- Кастомная конфигурация Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'mono': ['JetBrains Mono', 'monospace'],
+                        'sans': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'neuro-dark': '#0a0a0a',
+                        'neuro-gray': '#1a1a1a',
+                        'neuro-border': '#2a2a2a',
+                        'neuro-green': '#00ff9d',
+                        'neuro-cyan': '#00e0ff',
+                        'neuro-purple': '#9d00ff',
+                        'neuro-pink': '#ff00c8',
+                        'neuro-yellow': '#ffd600',
+                    },
+                    animation: {
+                        'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+                        'neuron-pulse': 'neuron-pulse 1.5s ease-in-out infinite',
+                        'connection-flow': 'connection-flow 3s linear infinite',
+                    },
+                    keyframes: {
+                        'pulse-glow': {
+                            '0%, 100%': { boxShadow: '0 0 5px rgba(0, 255, 157, 0.5)' },
+                            '50%': { boxShadow: '0 0 20px rgba(0, 255, 157, 0.8)' },
+                        },
+                        'neuron-pulse': {
+                            '0%, 100%': { transform: 'scale(1)', opacity: 0.8 },
+                            '50%': { transform: 'scale(1.1)', opacity: 1 },
+                        },
+                        'connection-flow': {
+                            '0%': { strokeDashoffset: '100' },
+                            '100%': { strokeDashoffset: '0' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Кастомные стили */
+        .neuro-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .neuro-scrollbar::-webkit-scrollbar-track {
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+        .neuro-scrollbar::-webkit-scrollbar-thumb {
+            background: #00ff9d;
+            border-radius: 4px;
+        }
+        .sigma-container {
+            background: #0a0a0a !important;
+        }
+        .neuron-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff9d;
+            border-radius: 4px;
+            padding: 8px;
+            color: white;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        .digit-pixel {
+            transition: all 0.3s ease;
+        }
+        .digit-pixel:hover {
+            transform: scale(1.2);
+            z-index: 10;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .training-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse-glow 2s infinite;
+        }
+        .connection-line {
+            stroke-dasharray: 5, 5;
+            animation: connection-flow 3s linear infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #00ff9d, #00e0ff, #9d00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="bg-neuro-dark text-white font-sans min-h-screen gradient-bg">
+    <!-- Основной контейнер -->
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold font-mono text-neuro-green mb-2">
+                        <i class="fas fa-brain mr-3"></i>NeuroTick SPA
+                    </h1>
+                    <p class="text-neuro-cyan text-opacity-80">
+                        Bionic Neural Network Visualizer • Interactive Graph Learning
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-xs px-3 py-1 rounded-full bg-neuro-gray border border-neuro-border">
+                        <span class="text-neuro-green">Active Nodes:</span> 
+                        <span x-text="network?.nodes?.length || 0" class="font-bold ml-1"></span>
+                    </div>
+                    <div class="text-xs px-3 py-1 rounded-full bg-neuro-gray border border-neuro-border">
+                        <span class="text-neuro-cyan">Connections:</span> 
+                        <span x-text="activeConnections" class="font-bold ml-1"></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Основная сетка -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Панель 1: Визуализация графа -->
+            <div class="lg:col-span-2">
+                <div class="glass-effect rounded-xl p-4 h-[600px]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-neuro-yellow">
+                            <i class="fas fa-project-diagram mr-2"></i>Network Graph
+                        </h2>
+                        <div class="flex gap-2">
+                            <button @click="toggleLayout()" class="px-3 py-1 text-xs bg-neuro-gray hover:bg-neuro-border rounded-lg transition">
+                                <i class="fas fa-sitemap mr-1"></i>Layout
+                            </button>
+                            <button @click="resetView()" class="px-3 py-1 text-xs bg-neuro-gray hover:bg-neuro-border rounded-lg transition">
+                                <i class="fas fa-crosshairs mr-1"></i>Reset View
+                            </button>
+                        </div>
+                    </div>
+                    <div id="sigma-container" class="w-full h-[500px] rounded-lg overflow-hidden border border-neuro-border"></div>
+                </div>
+            </div>
+            
+            <!-- Панель 2: Статус и управление -->
+            <div class="space-y-6">
+                <!-- Статус обучения -->
+                <div class="glass-effect rounded-xl p-4">
+                    <h2 class="text-xl font-semibold text-neuro-green mb-4">
+                        <i class="fas fa-chart-line mr-2"></i>Training Status
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm">Progress</span>
+                                <span class="text-sm font-mono" x-text="`${trainingStep}/3000`"></span>
+                            </div>
+                            <div class="w-full bg-neuro-gray rounded-full h-2">
+                                <div class="bg-neuro-green h-2 rounded-full transition-all duration-300" 
+                                     :style="`width: ${(trainingStep/3000)*100}%`"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                                <div class="text-2xl font-bold text-neuro-cyan" x-text="accuracy.toFixed(1)"></div>
+                                <div class="text-xs mt-1 text-gray-400">Accuracy %</div>
+                            </div>
+                            <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                                <div class="text-2xl font-bold text-neuro-purple" x-text="mutationRate.toFixed(3)"></div>
+                                <div class="text-xs mt-1 text-gray-400">Mutation Rate</div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-neuro-border">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-sm">Current Phase:</div>
+                                    <div class="text-lg font-mono" x-text="isSleeping ? 'SLEEP 💤' : 'LEARNING 🧠'"
+                                         :class="isSleeping ? 'text-neuro-cyan' : 'text-neuro-green'"></div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm">Active Connections</div>
+                                    <div class="text-lg font-bold" x-text="activeConnections"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Управление -->
+                <div class="glass-effect rounded-xl p-4">
+                    <h2 class="text-xl font-semibold text-neuro-yellow mb-4">
+                        <i class="fas fa-sliders-h mr-2"></i>Controls
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <button @click="toggleTraining()" 
+                                    class="flex-1 py-2 rounded-lg font-semibold transition"
+                                    :class="isTraining ? 'bg-red-500 hover:bg-red-600' : 'bg-neuro-green hover:bg-neuro-cyan'">
+                                <i class="fas" :class="isTraining ? 'fa-pause' : 'fa-play'"></i>
+                                <span x-text="isTraining ? 'Pause' : 'Start'"></span>
+                            </button>
+                            <button @click="resetNetwork()" 
+                                    class="px-4 py-2 bg-neuro-gray hover:bg-neuro-border rounded-lg transition">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm mb-2">Network Speed</label>
+                            <input type="range" min="1" max="10" step="1" x-model="speed"
+                                   class="w-full h-2 bg-neuro-gray rounded-lg appearance-none cursor-pointer">
+                            <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                <span>Slow</span>
+                                <span x-text="speed + 'x'"></span>
+                                <span>Fast</span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm mb-2">Connection Threshold</label>
+                            <input type="range" min="0" max="0.5" step="0.01" x-model="connectionThreshold"
+                                   @input="updateGraph()"
+                                   class="w-full h-2 bg-neuro-gray rounded-lg appearance-none cursor-pointer">
+                            <div class="text-xs text-gray-400 mt-1" x-text="'Show > ' + connectionThreshold.toFixed(2)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Нижняя панель с данными -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Текущий образец -->
+            <div class="glass-effect rounded-xl p-4">
+                <h2 class="text-xl font-semibold text-neuro-cyan mb-4">
+                    <i class="fas fa-image mr-2"></i>Current Digit Sample
+                </h2>
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div>
+                        <div class="mb-4">
+                            <div class="text-sm text-gray-400">Target Digit</div>
+                            <div class="text-4xl font-bold font-mono" x-text="currentSample?.label || '0'"></div>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-sm text-gray-400">Predicted</div>
+                            <div class="text-3xl font-bold font-mono" 
+                                 :class="prediction?.isCorrect ? 'text-neuro-green' : 'text-neuro-pink'"
+                                 x-text="prediction?.predicted || '?'"></div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-400">Confidence</div>
+                            <div class="text-2xl font-mono" 
+                                 :class="prediction?.confidence > 0.5 ? 'text-neuro-green' : 'text-yellow-400'"
+                                 x-text="prediction?.confidence ? (prediction.confidence * 100).toFixed(1) + '%' : '0%'"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-400 mb-2">8×8 Pixel Grid</div>
+                        <div class="grid grid-cols-8 gap-1 max-w-[240px] mx-auto">
+                            <template x-for="(pixel, idx) in currentSample?.pixels || []">
+                                <div class="digit-pixel aspect-square rounded-sm border border-neuro-border"
+                                     :style="`background-color: rgb(${pixel.value * 255}, ${pixel.value * 255}, ${pixel.value * 255})`"
+                                     :title="`Value: ${pixel.value?.toFixed(2) || 0}`"></div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Статистика сети -->
+            <div class="glass-effect rounded-xl p-4">
+                <h2 class="text-xl font-semibold text-neuro-purple mb-4">
+                    <i class="fas fa-chart-bar mr-2"></i>Network Statistics
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-green" x-text="totalSteps"></div>
+                        <div class="text-xs mt-1 text-gray-400">Total Steps</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-cyan" x-text="correctPredictions"></div>
+                        <div class="text-xs mt-1 text-gray-400">Correct</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-yellow" x-text="network?.numNodes || 130"></div>
+                        <div class="text-xs mt-1 text-gray-400">Total Nodes</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-pink" x-text="inputNodes"></div>
+                        <div class="text-xs mt-1 text-gray-400">Input Neurons</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-purple" x-text="hiddenNodes"></div>
+                        <div class="text-xs mt-1 text-gray-400">Hidden Neurons</div>
+                    </div>
+                    <div class="text-center p-3 bg-neuro-gray rounded-lg">
+                        <div class="text-2xl font-bold text-neuro-green" x-text="outputNodes"></div>
+                        <div class="text-xs mt-1 text-gray-400">Output Neurons</div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-neuro-border">
+                    <div class="text-sm text-gray-400 mb-2">Node Activity</div>
+                    <div class="flex items-center gap-2">
+                        <template x-for="n in 20">
+                            <div class="flex-1 h-6 bg-neuro-gray rounded overflow-hidden">
+                                <div class="h-full bg-neuro-green transition-all duration-300"
+                                     :style="`width: ${Math.random() * 100}%`"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Лог событий -->
+        <div class="glass-effect rounded-xl p-4 mb-6">
+            <h2 class="text-xl font-semibold text-neuro-yellow mb-4">
+                <i class="fas fa-history mr-2"></i>Event Log
+            </h2>
+            <div class="h-40 overflow-y-auto neuro-scrollbar space-y-2">
+                <template x-for="(log, idx) in eventLog.slice().reverse().slice(0, 10)">
+                    <div class="text-sm p-2 rounded bg-neuro-gray border-l-4"
+                         :class="{
+                             'border-neuro-green': log.type === 'success',
+                             'border-neuro-pink': log.type === 'error',
+                             'border-neuro-cyan': log.type === 'info',
+                             'border-neuro-yellow': log.type === 'warning'
+                         }">
+                        <span class="font-mono text-xs text-gray-400" x-text="log.time"></span>
+                        <span class="ml-2" x-text="log.message"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <!-- Футер -->
+        <footer class="text-center text-gray-500 text-sm py-6 border-t border-neuro-border">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <div class="flex items-center gap-2 justify-center md:justify-start">
+                        <i class="fas fa-code text-neuro-green"></i>
+                        <span>NeuroTick SPA v1.0 • Interactive Neural Network Visualization</span>
+                    </div>
+                    <div class="text-xs mt-1">
+                        Powered by Alpine.js, sigma.js, Tailwind CSS
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button @click="exportNetwork()" class="text-gray-400 hover:text-neuro-green transition">
+                        <i class="fas fa-download mr-1"></i>Export
+                    </button>
+                    <button @click="toggleTheme()" class="text-gray-400 hover:text-neuro-cyan transition">
+                        <i class="fas fa-moon mr-1"></i>Theme
+                    </button>
+                    <button @click="showHelp = true" class="text-gray-400 hover:text-neuro-yellow transition">
+                        <i class="fas fa-question-circle mr-1"></i>Help
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Модальное окно помощи -->
+    <template x-if="showHelp">
+        <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div class="bg-neuro-gray rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto neuro-scrollbar">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-bold text-neuro-green">
+                            <i class="fas fa-question-circle mr-2"></i>NeuroTick SPA Guide
+                        </h3>
+                        <button @click="showHelp = false" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="p-4 bg-neuro-dark rounded-lg">
+                            <h4 class="font-semibold text-neuro-cyan mb-2">What is NeuroTick?</h4>
+                            <p class="text-gray-300">
+                                NeuroTick is a bionic neural network that evolves through simulated biological processes 
+                                like synaptic plasticity, mutation, and homeostasis. Unlike traditional neural networks, 
+                                it doesn't use backpropagation.
+                            </p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="p-4 bg-neuro-dark rounded-lg">
+                                <h4 class="font-semibold text-neuro-yellow mb-2">Controls</h4>
+                                <ul class="text-gray-300 space-y-2">
+                                    <li><i class="fas fa-play text-neuro-green mr-2"></i>Start/Pause training</li>
+                                    <li><i class="fas fa-redo text-gray-400 mr-2"></i>Reset network</li>
+                                    <li><i class="fas fa-sitemap text-neuro-cyan mr-2"></i>Change graph layout</li>
+                                    <li><i class="fas fa-sliders-h text-neuro-purple mr-2"></i>Adjust parameters</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="p-4 bg-neuro-dark rounded-lg">
+                                <h4 class="font-semibold text-neuro-pink mb-2">Visualization</h4>
+                                <ul class="text-gray-300 space-y-2">
+                                    <li><span class="text-neuro-green">Green nodes</span>: Input neurons (pixels)</li>
+                                    <li><span class="text-neuro-cyan">Cyan nodes</span>: Hidden neurons</li>
+                                    <li><span class="text-neuro-purple">Purple nodes</span>: Output neurons (digits)</li>
+                                    <li><span class="text-neuro-yellow">Line thickness</span>: Connection strength</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    
+    <!-- Основной скрипт приложения -->
+    <script>
+        // Класс нейронной сети NeuroTick
+        class NeuroTick {
+            constructor(numNodes = 130) {
+                this.numNodes = numNodes;
+                this.weights = Array(numNodes).fill().map(() => Array(numNodes).fill(0));
+                this.immunity = Array(numNodes).fill().map(() => Array(numNodes).fill(0));
+                this.nodes = Array(numNodes).fill(0);
+                this.mutationRate = 0.15;
+                
+                // ID узлов
+                this.inputIds = Array.from({length: 64}, (_, i) => i);
+                this.outputIds = Array.from({length: 10}, (_, i) => numNodes - 10 + i);
+                this.classNames = Array.from({length: 10}, (_, i) => i.toString());
+                
+                // Инициализация случайных связей
+                this.initializeWeights();
+            }
+
+            initializeWeights() {
+                for (let k = 0; k < this.numNodes * 2; k++) {
+                    const i = Math.floor(Math.random() * this.numNodes);
+                    const j = Math.floor(Math.random() * this.numNodes);
+                    if (i !== j) {
+                        this.weights[i][j] = Math.random() * 0.15 + 0.05;
+                        this.immunity[i][j] = 20;
+                    }
+                }
+            }
+
+            tick(inputs, targetClass = null, isSleeping = false) {
+                // Применение входных значений
+                Object.entries(inputs).forEach(([idx, val]) => {
+                    this.nodes[parseInt(idx)] = val;
+                });
+
+                // Прямое распространение
+                const rawSignal = new Array(this.numNodes).fill(0);
+                for (let j = 0; j < this.numNodes; j++) {
+                    let sum = 0;
+                    for (let i = 0; i < this.numNodes; i++) {
+                        sum += this.nodes[i] * this.weights[i][j];
+                    }
+                    rawSignal[j] = sum;
+                }
+
+                // Активация с порогом (Sparse Activation)
+                for (let i = 0; i < this.numNodes; i++) {
+                    this.nodes[i] = rawSignal[i] > 0.6 ? Math.tanh(rawSignal[i]) : 0;
+                }
+
+                // Определение выходного класса
+                const outputVals = this.outputIds.map(id => this.nodes[id]);
+                const maxVal = Math.max(...outputVals);
+                const predicted = outputVals.indexOf(maxVal);
+
+                // Оценка уверенности и правильности
+                const isConfident = maxVal > 0.1;
+                const isCorrect = isConfident && targetClass !== null && predicted === targetClass;
+
+                if (!isSleeping) {
+                    // Адаптация скорости мутации
+                    this.mutationRate *= isCorrect ? 0.96 : 1.04;
+                    this.mutationRate = Math.max(0.01, Math.min(0.4, this.mutationRate));
+                    
+                    // Эволюция весов
+                    this.evolve(targetClass, predicted, isCorrect, isConfident);
+                }
+
+                return {
+                    predicted,
+                    isCorrect,
+                    confidence: maxVal,
+                    outputValues: outputVals
+                };
+            }
+
+            evolve(targetClass, predicted, isCorrect, isConfident) {
+                const targetNode = targetClass !== null ? this.outputIds[targetClass] : null;
+                const wrongNode = (!isCorrect && isConfident) ? this.outputIds[predicted] : null;
+
+                for (let j = 0; j < this.numNodes; j++) {
+                    // Гомеостаз (Synaptic Scaling)
+                    let totalIn = 0;
+                    for (let i = 0; i < this.numNodes; i++) {
+                        totalIn += this.weights[i][j];
+                    }
+                    
+                    if (totalIn > 0.8) {
+                        const scale = 0.8 / totalIn;
+                        for (let i = 0; i < this.numNodes; i++) {
+                            this.weights[i][j] *= scale;
+                        }
+                    }
+
+                    for (let i = 0; i < this.numNodes; i++) {
+                        if (i === j) continue;
+                        
+                        const w = this.weights[i][j];
+                        
+                        if (w > 0) {
+                            // Усиление (LTP - Long-Term Potentiation)
+                            if (isCorrect && j === targetNode && this.nodes[i] > 0.05) {
+                                this.immunity[i][j] = 60;
+                                this.weights[i][j] += 0.2;
+                            }
+                            // Ослабление (LTD - Long-Term Depression)
+                            else if (wrongNode === j && this.nodes[i] > 0.05) {
+                                this.weights[i][j] *= 0.3;
+                                this.immunity[i][j] = 0;
+                            }
+
+                            // Распад весов (синаптический распад)
+                            if (this.immunity[i][j] <= 0) {
+                                this.weights[i][j] *= 0.93;
+                            } else {
+                                this.immunity[i][j] -= 1;
+                            }
+
+                            if (this.weights[i][j] < 0.05) {
+                                this.weights[i][j] = 0;
+                            }
+                        } else {
+                            // Создание новых связей (синаптическая пластичность)
+                            if (Math.random() < this.mutationRate) {
+                                this.weights[i][j] = Math.random() * 0.2 + 0.1;
+                                this.immunity[i][j] = 20;
+                            }
+                        }
+                    }
+                }
+            }
+
+            getActiveConnections(threshold = 0.05) {
+                const connections = [];
+                for (let i = 0; i < this.numNodes; i++) {
+                    for (let j = 0; j < this.numNodes; j++) {
+                        const weight = this.weights[i][j];
+                        if (weight > threshold) {
+                            connections.push({
+                                source: i,
+                                target: j,
+                                weight: weight,
+                                type: this.getConnectionType(i, j)
+                            });
+                        }
+                    }
+                }
+                return connections;
+            }
+            
+            getConnectionType(source, target) {
+                if (source < 64 && target < 64) return 'input-input';
+                if (source < 64 && target >= 64 && target < 120) return 'input-hidden';
+                if (source >= 64 && source < 120 && target < 64) return 'hidden-input';
+                if (source >= 64 && source < 120 && target >= 64 && target < 120) return 'hidden-hidden';
+                if (source >= 64 && source < 120 && target >= 120) return 'hidden-output';
+                if (source >= 120 && target >= 64 && target < 120) return 'output-hidden';
+                if (source >= 120 && target >= 120) return 'output-output';
+                return 'other';
+            }
+
+            resetNodes() {
+                this.nodes = Array(this.numNodes).fill(0);
+            }
+        }
+
+        // Основное состояние приложения
+        function app() {
+            return {
+                // Состояние приложения
+                isTraining: false,
+                isSleeping: false,
+                showHelp: false,
+                speed: 3,
+                connectionThreshold: 0.1,
+                currentLayout: 'force',
+                isDarkMode: true,
+                showNodeDetails: false,
+                selectedNode: null,
+                animationFrameId: null,
+                
+                // Данные сети
+                network: null,
+                sigmaInstance: null,
+                graphData: null,
+                
+                // Метаданные сети
+                inputNodes: 64,
+                hiddenNodes: 56,
+                outputNodes: 10,
+                totalNodes: 130,
+                
+                // Статистика обучения
+                trainingStep: 0,
+                totalSteps: 0,
+                correctPredictions: 0,
+                accuracy: 0,
+                mutationRate: 0.15,
+                activeConnections: 0,
+                
+                // Текущий образец
+                currentSample: null,
+                prediction: null,
+                
+                // Лог событий
+                eventLog: [],
+                
+                // Инициализация
+                async init() {
+                    this.addLog('NeuroTick SPA Initializing...', 'info');
+                    
+                    try {
+                        this.initNetwork();
+                        await this.initSigma();
+                        this.loadSample();
+                        
+                        // Запуск анимаций
+                        this.startAnimations();
+                        
+                        // Инициализация темы
+                        this.initTheme();
+                        
+                        this.addLog('System ready. Click Start to begin training.', 'success');
+                    } catch (error) {
+                        console.error('Initialization error:', error);
+                        this.addLog('Initialization failed: ' + error.message, 'error');
+                    }
+                },
+                
+                // Инициализация темы
+                initTheme() {
+                    const savedTheme = localStorage.getItem('neurotick-theme');
+                    this.isDarkMode = savedTheme !== 'light';
+                    
+                    if (this.isDarkMode) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                },
+                
+                // Запуск анимаций
+                startAnimations() {
+                    // Запуск цикла анимации графа
+                    this.animationLoop();
+                },
+                
+                // Анимация цикла
+                animationLoop() {
+                    if (this.animationFrameId) {
+                        cancelAnimationFrame(this.animationFrameId);
+                    }
+                    
+                    const animate = () => {
+                        if (this.isTraining) {
+                            this.updateActiveNodes();
+                            if (this.sigmaInstance) {
+                                this.sigmaInstance.refresh();
+                            }
+                        }
+                        
+                        this.animationFrameId = requestAnimationFrame(animate);
+                    };
+                    
+                    this.animationFrameId = requestAnimationFrame(animate);
+                },
+                
+                // Логирование
+                addLog(message, type = 'info') {
+                    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                    this.eventLog.push({
+                        time,
+                        message,
+                        type
+                    });
+                    
+                    // Ограничиваем лог последними 50 записями
+                    if (this.eventLog.length > 50) {
+                        this.eventLog = this.eventLog.slice(-50);
+                    }
+                },
+                
+                // Инициализация нейронной сети
+                initNetwork() {
+                    this.network = new NeuroTick();
+                    this.addLog('NeuroTick network created', 'info');
+                },
+                
+                // Загрузка образца данных
+                loadSample() {
+                    const digits = [
+                        // Цифра 0
+                        [0,0,0,1,1,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0,1,0,
+                         1,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+                        // Цифра 1
+                        [0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,
+                         0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0],
+                        // Цифра 2
+                        [0,0,0,1,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,
+                         0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
+                        // Цифра 3
+                        [0,0,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,0,
+                         0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+                        // Цифра 4
+                        [0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,1,0,1,0,0,0,0,1,0,0,1,0,0,0,
+                         1,1,1,1,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0]
+                    ].map(arr => arr.map(x => x / 8.0));
+                    
+                    const labels = [0, 1, 2, 3, 4];
+                    const idx = Math.floor(Math.random() * digits.length);
+                    
+                    this.currentSample = {
+                        image: digits[idx],
+                        label: labels[idx],
+                        pixels: Array.from({length: 64}, (_, i) => ({
+                            x: i % 8,
+                            y: Math.floor(i / 8),
+                            value: digits[idx][i]
+                        }))
+                    };
+                },
+                
+                // Обновление статистики
+                updateStats() {
+                    if (this.totalSteps > 0) {
+                        this.accuracy = (this.correctPredictions / this.totalSteps) * 100;
+                    }
+                    this.mutationRate = this.network?.mutationRate || 0.15;
+                    
+                    // Подсчет активных соединений
+                    if (this.network) {
+                        this.activeConnections = this.network.getActiveConnections(this.connectionThreshold).length;
+                    }
+                },
+                
+                // Переключение обучения
+                toggleTraining() {
+                    this.isTraining = !this.isTraining;
+                    
+                    if (this.isTraining) {
+                        this.addLog('Training started', 'success');
+                        this.train();
+                    } else {
+                        this.addLog('Training paused', 'warning');
+                    }
+                },
+                
+                // Сброс сети
+                resetNetwork() {
+                    this.isTraining = false;
+                    this.trainingStep = 0;
+                    this.totalSteps = 0;
+                    this.correctPredictions = 0;
+                    this.initNetwork();
+                    this.updateGraph();
+                    this.addLog('Network reset to initial state', 'info');
+                },
+                
+                // Переключение темы
+                toggleTheme() {
+                    this.isDarkMode = !this.isDarkMode;
+                    
+                    if (this.isDarkMode) {
+                        document.documentElement.classList.add('dark');
+                        localStorage.setItem('neurotick-theme', 'dark');
+                        this.addLog('Switched to dark theme', 'info');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        localStorage.setItem('neurotick-theme', 'light');
+                        this.addLog('Switched to light theme', 'info');
+                    }
+                },
+                
+                // Экспорт сети
+                exportNetwork() {
+                    if (!this.network) return;
+                    
+                    const data = {
+                        weights: this.network.weights,
+                        connections: this.network.getActiveConnections(0.05),
+                        statistics: {
+                            accuracy: this.accuracy,
+                            totalSteps: this.totalSteps,
+                            mutationRate: this.mutationRate
+                        },
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `neurotick-export-${Date.now()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    this.addLog('Network exported', 'success');
+                },
+                
+                // Инициализация sigma.js
+                async initSigma() {
+                    try {
+                        // Создаем контейнер
+                        const container = document.getElementById('sigma-container');
+                        if (!container) return;
+                        
+                        // Инициализация графа
+                        this.graphData = new graphology.Graph();
+                        
+                        // Настройка sigma.js
+                        this.sigmaInstance = new sigma({
+                            graph: this.graphData,
+                            container: 'sigma-container',
+                            settings: {
+                                defaultNodeColor: '#00ff9d',
+                                defaultEdgeColor: '#00e0ff',
+                                edgeColor: 'source',
+                                minEdgeSize: 0.5,
+                                maxEdgeSize: 5,
+                                labelThreshold: 8,
+                                labelSize: 'proportional',
+                                labelSizeRatio: 1,
+                                scalingMode: 'inside',
+                                sideMargin: 0.3,
+                                enableEdgeHovering: true,
+                                edgeHoverColor: 'edge',
+                                edgeHoverSizeRatio: 1.5,
+                                edgeHoverExtremities: true,
+                                defaultEdgeType: 'arrow',
+                                font: 'JetBrains Mono',
+                                labelColor: { color: '#ffffff' }
+                            }
+                        });
+                        
+                        // Добавляем узлы сети
+                        this.createGraphNodes();
+                        
+                        // Запускаем ForceAtlas2 layout
+                        const fa2 = new sigma.layouts.forceAtlas2(this.graphData, {
+                            settings: {
+                                gravity: 0.5,
+                                scalingRatio: 30,
+                                slowDown: 10,
+                                barnesHutOptimize: true,
+                                barnesHutTheta: 0.8,
+                                adjustSizes: true,
+                                linLogMode: false,
+                                outboundAttractionDistribution: false
+                            }
+                        });
+                        
+                        // Запускаем layout на 2000 итераций
+                        fa2.start();
+                        setTimeout(() => {
+                            fa2.stop();
+                            this.sigmaInstance.refresh();
+                        }, 2000);
+                        
+                        // Добавляем обработчики событий
+                        this.bindSigmaEvents();
+                        
+                        this.addLog('Sigma.js visualization initialized', 'success');
+                    } catch (error) {
+                        console.error('Sigma.js initialization error:', error);
+                        this.addLog('Failed to initialize visualization', 'error');
+                    }
+                },
+                
+                // Создание узлов графа
+                createGraphNodes() {
+                    if (!this.graphData || !this.network) return;
+                    
+                    // Очищаем существующие узлы
+                    this.graphData.clear();
+                    
+                    // Создаем узлы для каждого нейрона
+                    for (let i = 0; i < this.network.numNodes; i++) {
+                        const nodeType = this.getNodeType(i);
+                        const nodeColor = this.getNodeColor(nodeType);
+                        const nodeSize = this.getNodeSize(nodeType);
+                        const nodeLabel = this.getNodeLabel(i, nodeType);
+                        
+                        this.graphData.addNode(i, {
+                            label: nodeLabel,
+                            size: nodeSize,
+                            color: nodeColor,
+                            type: nodeType,
+                            x: Math.random() * 100,
+                            y: Math.random() * 100,
+                            hidden: false
+                        });
+                    }
+                    
+                    this.addLog(`Created ${this.network.numNodes} graph nodes`, 'info');
+                },
+                
+                // Получение типа узла
+                getNodeType(nodeId) {
+                    if (nodeId < 64) return 'input';
+                    if (nodeId >= 64 && nodeId < 120) return 'hidden';
+                    if (nodeId >= 120) return 'output';
+                    return 'hidden';
+                },
+                
+                // Получение цвета узла
+                getNodeColor(nodeType) {
+                    switch(nodeType) {
+                        case 'input': return '#00ff9d';
+                        case 'hidden': return '#00e0ff';
+                        case 'output': return '#9d00ff';
+                        default: return '#666666';
+                    }
+                },
+                
+                // Получение размера узла
+                getNodeSize(nodeType) {
+                    switch(nodeType) {
+                        case 'input': return 4;
+                        case 'hidden': return 6;
+                        case 'output': return 8;
+                        default: return 5;
+                    }
+                },
+                
+                // Получение метки узла
+                getNodeLabel(nodeId, nodeType) {
+                    if (nodeType === 'input') return `Px${nodeId}`;
+                    if (nodeType === 'output') {
+                        const digit = nodeId - 120;
+                        return `D${digit}`;
+                    }
+                    return `N${nodeId}`;
+                },
+                
+                // Обновление графа
+                updateGraph() {
+                    if (!this.graphData || !this.network || !this.sigmaInstance) return;
+                    
+                    // Получаем активные соединения
+                    const connections = this.network.getActiveConnections(this.connectionThreshold);
+                    
+                    // Удаляем все существующие ребра
+                    this.graphData.forEachEdge(edge => this.graphData.dropEdge(edge));
+                    
+                    // Добавляем новые ребра
+                    connections.forEach(conn => {
+                        try {
+                            this.graphData.addEdge(conn.source, conn.target, {
+                                size: Math.max(conn.weight * 3, 0.5),
+                                color: this.getEdgeColor(conn.weight),
+                                weight: conn.weight,
+                                type: 'arrow',
+                                hidden: false
+                            });
+                        } catch (error) {
+                            // Игнорируем ошибки дублирования ребер
+                        }
+                    });
+                    
+                    // Обновляем активные узлы
+                    this.updateActiveNodes();
+                    
+                    // Обновляем визуализацию
+                    this.sigmaInstance.refresh();
+                    
+                    this.activeConnections = connections.length;
+                },
+                
+                // Обновление активности узлов
+                updateActiveNodes() {
+                    if (!this.network || !this.graphData) return;
+                    
+                    this.graphData.forEachNode(node => {
+                        const activity = this.network.nodes[node] || 0;
+                        const scale = 1 + (activity * 2);
+                        
+                        this.graphData.mergeNodeAttributes(node, {
+                            size: Math.min(this.getNodeSize(this.getNodeType(node)) * scale, 15),
+                            color: this.getActiveNodeColor(node, activity)
+                        });
+                    });
+                },
+                
+                // Получение цвета активного узла
+                getActiveNodeColor(nodeId, activity) {
+                    const baseColor = this.getNodeColor(this.getNodeType(nodeId));
+                    
+                    if (activity > 0.3) {
+                        return '#ffd600';
+                    } else if (activity > 0.1) {
+                        return '#ff00c8';
+                    }
+                    
+                    return baseColor;
+                },
+                
+                // Получение цвета ребра
+                getEdgeColor(weight) {
+                    if (weight > 0.3) return '#ffd600';
+                    if (weight > 0.2) return '#00ff9d';
+                    if (weight > 0.1) return '#00e0ff';
+                    return '#9d00ff';
+                },
+                
+                // Привязка событий sigma.js
+                bindSigmaEvents() {
+                    if (!this.sigmaInstance) return;
+                    
+                    // Обработчик клика по узлу
+                    this.sigmaInstance.on('clickNode', (event) => {
+                        const node = event.data.node;
+                        const nodeData = this.graphData.getNodeAttributes(node);
+                        
+                        this.addLog(`Clicked node ${nodeData.label} (${nodeData.type})`, 'info');
+                        this.showNodeInfo(node);
+                    });
+                    
+                    // Обработчик наведения на узел
+                    this.sigmaInstance.on('enterNode', (event) => {
+                        const node = event.data.node;
+                        const nodeData = this.graphData.getNodeAttributes(node);
+                        
+                        // Показываем tooltip
+                        this.showNodeTooltip(event, nodeData);
+                    });
+                    
+                    // Обработчик ухода с узла
+                    this.sigmaInstance.on('leaveNode', () => {
+                        this.hideNodeTooltip();
+                    });
+                    
+                    // Обработчик наведения на ребро
+                    this.sigmaInstance.on('enterEdge', (event) => {
+                        const edge = event.data.edge;
+                        const edgeData = this.graphData.getEdgeAttributes(edge);
+                        
+                        this.addLog(`Edge weight: ${edgeData.weight.toFixed(3)}`, 'info');
+                    });
+                },
+                
+                // Показ tooltip для узла
+                showNodeTooltip(event, nodeData) {
+                    // Создаем tooltip если его нет
+                    let tooltip = document.querySelector('.neuron-tooltip');
+                    if (!tooltip) {
+                        tooltip = document.createElement('div');
+                        tooltip.className = 'neuron-tooltip';
+                        document.body.appendChild(tooltip);
+                    }
+                    
+                    // Заполняем данными
+                    const activity = this.network?.nodes[nodeData.id] || 0;
+                    tooltip.innerHTML = `
+                        <div class="font-bold mb-1">${nodeData.label}</div>
+                        <div class="text-xs">
+                            <div>Type: ${nodeData.type}</div>
+                            <div>Activity: ${activity.toFixed(3)}</div>
+                            <div>ID: ${nodeData.id}</div>
+                        </div>
+                    `;
+                    
+                    // Позиционируем tooltip
+                    tooltip.style.left = `${event.data.x + 15}px`;
+                    tooltip.style.top = `${event.data.y + 15}px`;
+                    tooltip.style.display = 'block';
+                },
+                
+                // Скрытие tooltip
+                hideNodeTooltip() {
+                    const tooltip = document.querySelector('.neuron-tooltip');
+                    if (tooltip) {
+                        tooltip.style.display = 'none';
+                    }
+                },
+                
+                // Переключение layout
+                toggleLayout() {
+                    if (!this.graphData || !this.sigmaInstance) return;
+                    
+                    const layouts = ['force', 'circular', 'random'];
+                    const currentIndex = layouts.indexOf(this.currentLayout);
+                    const nextLayout = layouts[(currentIndex + 1) % layouts.length];
+                    this.currentLayout = nextLayout;
+                    
+                    this.applyLayout(nextLayout);
+                    this.addLog(`Changed layout to ${nextLayout}`, 'info');
+                },
+                
+                // Применение layout
+                applyLayout(layoutType) {
+                    if (!this.graphData) return;
+                    
+                    // Останавливаем предыдущий layout
+                    sigma.layouts.killAll();
+                    
+                    switch(layoutType) {
+                        case 'force':
+                            const fa2 = new sigma.layouts.forceAtlas2(this.graphData, {
+                                settings: {
+                                    gravity: 0.5,
+                                    scalingRatio: 30,
+                                    slowDown: 10,
+                                    barnesHutOptimize: true,
+                                    barnesHutTheta: 0.8
+                                }
+                            });
+                            fa2.start();
+                            setTimeout(() => {
+                                fa2.stop();
+                                if (this.sigmaInstance) this.sigmaInstance.refresh();
+                            }, 1000);
+                            break;
+                            
+                        case 'circular':
+                            // Размещаем узлы по кругу
+                            const nodes = this.graphData.nodes();
+                            const radius = 100;
+                            nodes.forEach((node, index) => {
+                                const angle = (index / nodes.length) * Math.PI * 2;
+                                this.graphData.mergeNodeAttributes(node, {
+                                    x: Math.cos(angle) * radius,
+                                    y: Math.sin(angle) * radius
+                                });
+                            });
+                            if (this.sigmaInstance) this.sigmaInstance.refresh();
+                            break;
+                            
+                        case 'random':
+                            // Случайное размещение
+                            this.graphData.forEachNode(node => {
+                                this.graphData.mergeNodeAttributes(node, {
+                                    x: Math.random() * 200 - 100,
+                                    y: Math.random() * 200 - 100
+                                });
+                            });
+                            if (this.sigmaInstance) this.sigmaInstance.refresh();
+                            break;
+                    }
+                },
+                
+                // Сброс вида графа
+                resetView() {
+                    if (this.sigmaInstance) {
+                        this.sigmaInstance.getCamera().animate({
+                            x: 0,
+                            y: 0,
+                            ratio: 1,
+                            angle: 0
+                        }, {
+                            duration: 500
+                        });
+                    }
+                    this.addLog('Graph view reset', 'info');
+                },
+                
+                // Отображение деталей узла
+                showNodeInfo(nodeId) {
+                    if (!this.network || !this.graphData) return;
+                    
+                    this.selectedNode = nodeId;
+                    this.showNodeDetails = true;
+                    
+                    const nodeData = this.graphData.getNodeAttributes(nodeId);
+                    const activity = this.network.nodes[nodeId] || 0;
+                    
+                    // Создаем модальное окно с деталями
+                    const modal = document.createElement('div');
+                    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+                    modal.innerHTML = `
+                        <div class="bg-neuro-gray rounded-xl max-w-md w-full">
+                            <div class="p-6">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-xl font-bold text-neuro-green">
+                                        <i class="fas fa-microchip mr-2"></i>Neuron Details
+                                    </h3>
+                                    <button @click="closeNodeInfo()" class="text-gray-400 hover:text-white">
+                                        <i class="fas fa-times text-xl"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="p-3 bg-neuro-dark rounded-lg">
+                                            <div class="text-sm text-gray-400">Node ID</div>
+                                            <div class="text-lg font-mono">${nodeData.label}</div>
+                                        </div>
+                                        <div class="p-3 bg-neuro-dark rounded-lg">
+                                            <div class="text-sm text-gray-400">Type</div>
+                                            <div class="text-lg font-mono">${nodeData.type}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-neuro-dark rounded-lg">
+                                        <div class="text-sm text-gray-400 mb-2">Current Activity</div>
+                                        <div class="flex items-center gap-3">
+                                            <div class="text-2xl font-bold" style="${activity > 0.3 ? 'color: #00ff9d' : 'color: #00e0ff'}">
+                                                ${activity.toFixed(3)}
+                                            </div>
+                                            <div class="flex-1 h-4 bg-neuro-gray rounded-full overflow-hidden">
+                                                <div class="h-full bg-neuro-green rounded-full transition-all duration-300"
+                                                     style="width: ${Math.min(activity * 100, 100)}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-neuro-dark rounded-lg">
+                                        <div class="text-sm text-gray-400 mb-2">Connections</div>
+                                        <div class="text-lg font-bold text-neuro-yellow">
+                                            ${this.getConnectionCount(nodeId)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(modal);
+                    
+                    // Добавляем обработчик для кнопки закрытия
+                    modal.querySelector('button').addEventListener('click', () => {
+                        this.closeNodeInfo();
+                        document.body.removeChild(modal);
+                    });
+                },
+                
+                // Получение количества соединений узла
+                getConnectionCount(nodeId) {
+                    if (!this.graphData) return 0;
+                    
+                    let count = 0;
+                    this.graphData.forEachEdge((edge, attributes, source, target) => {
+                        if (source === nodeId || target === nodeId) {
+                            count++;
+                        }
+                    });
+                    
+                    return count;
+                },
+                
+                // Закрытие информации об узле
+                closeNodeInfo() {
+                    this.showNodeDetails = false;
+                    this.selectedNode = null;
+                },
+                
+                // Асинхронная функция обучения
+                async train() {
+                    if (!this.isTraining) return;
+                    
+                    while (this.isTraining && this.trainingStep < 3000) {
+                        // Определение фазы сна
+                        this.isSleeping = (this.trainingStep % 1000) > 800;
+                        
+                        // Загрузка нового образца каждые 10 шагов
+                        if (this.trainingStep % 10 === 0) {
+                            this.loadSample();
+                        }
+                        
+                        // Сброс состояния сети
+                        this.network.resetNodes();
+                        
+                        // Множественные такты для стабилизации
+                        for (let tick = 0; tick < 15; tick++) {
+                            const inputs = {};
+                            this.currentSample.image.forEach((val, idx) => {
+                                inputs[idx] = val;
+                            });
+                            
+                            this.prediction = this.network.tick(
+                                inputs,
+                                this.currentSample.label,
+                                this.isSleeping
+                            );
+                        }
+                        
+                        // Обновление статистики
+                        this.totalSteps++;
+                        if (this.prediction.isCorrect) {
+                            this.correctPredictions++;
+                        }
+                        
+                        this.updateStats();
+                        
+                        // Периодическое обновление графа
+                        if (this.trainingStep % 50 === 0) {
+                            this.updateGraph();
+                        }
+                        
+                        // Периодическое логирование
+                        if (this.trainingStep % 100 === 0) {
+                            this.addLog(`Step ${this.trainingStep}: Accuracy ${this.accuracy.toFixed(1)}%`, 'info');
+                        }
+                        
+                        this.trainingStep++;
+                        
+                        // Задержка в зависимости от скорости
+                        await this.sleep(100 / this.speed);
+                    }
+                    
+                    if (this.trainingStep >= 3000) {
+                        this.addLog('Training completed!', 'success');
+                        this.isTraining = false;
+                    }
+                },
+                
+                // Вспомогательная функция задержки
+                sleep(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
+                }
+            };
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Добавляем глобальные обработчики клавиш
+            document.addEventListener('keydown', function(e) {
+                const appInstance = Alpine.$data(document.querySelector('[x-data]'));
+                if (!appInstance) return;
+                
+                if (e.key === ' ') {
+                    // Пробел для паузы/продолжения
+                    appInstance.toggleTraining();
+                    e.preventDefault();
+                }
+                
+                if (e.key === 'r' && e.ctrlKey) {
+                    // Ctrl+R для сброса
+                    appInstance.resetNetwork();
+                    e.preventDefault();
+                }
+                
+                if (e.key === 'h' && e.ctrlKey) {
+                    // Ctrl+H для помощи
+                    appInstance.showHelp = true;
+                    e.preventDefault();
+                }
+                
+                if (e.key === 'Escape') {
+                    // ESC для закрытия модальных окон
+                    if (appInstance.showHelp) {
+                        appInstance.showHelp = false;
+                    }
+                    if (appInstance.showNodeDetails) {
+                        appInstance.closeNodeInfo();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
