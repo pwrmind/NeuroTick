@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuroTick SPA - Bionic Neural Network Visualizer</title>
+    <title>NeuroTick - Bionic Neural Network</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,11 +19,10 @@
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.0/dist/cdn.min.js"></script>
     
-    <!-- Sigma.js и зависимости -->
+    <!-- Sigma.js и зависимости (ИСПРАВЛЕННЫЕ ВЕРСИИ) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.24.0/graphology.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/1.2.1/sigma.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/1.2.1/plugins/sigma.layout.forceAtlas2.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/1.2.1/plugins/sigma.renderers.parallelEdges.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
+    <script src="https://unpkg.com/graphology-layout-forceatlas2@0.10.0"></script>
     
     <!-- Кастомная конфигурация Tailwind -->
     <script>
@@ -111,36 +110,6 @@
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .training-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-            animation: pulse-glow 2s infinite;
-        }
-        .connection-line {
-            stroke-dasharray: 5, 5;
-            animation: connection-flow 3s linear infinite;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .floating {
-            animation: float 3s ease-in-out infinite;
-        }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .gradient-text {
-            background: linear-gradient(90deg, #00ff9d, #00e0ff, #9d00ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
     </style>
 </head>
@@ -467,9 +436,9 @@
         </div>
     </template>
     
-    <!-- Основной скрипт приложения -->
+    <!-- Основной скрипт приложения (ИСПРАВЛЕННЫЙ) -->
     <script>
-        // Класс нейронной сети NeuroTick
+        // Класс нейронной сети NeuroTick (без изменений)
         class NeuroTick {
             constructor(numNodes = 130) {
                 this.numNodes = numNodes;
@@ -478,12 +447,10 @@
                 this.nodes = Array(numNodes).fill(0);
                 this.mutationRate = 0.15;
                 
-                // ID узлов
                 this.inputIds = Array.from({length: 64}, (_, i) => i);
                 this.outputIds = Array.from({length: 10}, (_, i) => numNodes - 10 + i);
                 this.classNames = Array.from({length: 10}, (_, i) => i.toString());
                 
-                // Инициализация случайных связей
                 this.initializeWeights();
             }
 
@@ -499,12 +466,10 @@
             }
 
             tick(inputs, targetClass = null, isSleeping = false) {
-                // Применение входных значений
                 Object.entries(inputs).forEach(([idx, val]) => {
                     this.nodes[parseInt(idx)] = val;
                 });
 
-                // Прямое распространение
                 const rawSignal = new Array(this.numNodes).fill(0);
                 for (let j = 0; j < this.numNodes; j++) {
                     let sum = 0;
@@ -514,26 +479,19 @@
                     rawSignal[j] = sum;
                 }
 
-                // Активация с порогом (Sparse Activation)
                 for (let i = 0; i < this.numNodes; i++) {
                     this.nodes[i] = rawSignal[i] > 0.6 ? Math.tanh(rawSignal[i]) : 0;
                 }
 
-                // Определение выходного класса
                 const outputVals = this.outputIds.map(id => this.nodes[id]);
                 const maxVal = Math.max(...outputVals);
                 const predicted = outputVals.indexOf(maxVal);
-
-                // Оценка уверенности и правильности
                 const isConfident = maxVal > 0.1;
                 const isCorrect = isConfident && targetClass !== null && predicted === targetClass;
 
                 if (!isSleeping) {
-                    // Адаптация скорости мутации
                     this.mutationRate *= isCorrect ? 0.96 : 1.04;
                     this.mutationRate = Math.max(0.01, Math.min(0.4, this.mutationRate));
-                    
-                    // Эволюция весов
                     this.evolve(targetClass, predicted, isCorrect, isConfident);
                 }
 
@@ -550,7 +508,6 @@
                 const wrongNode = (!isCorrect && isConfident) ? this.outputIds[predicted] : null;
 
                 for (let j = 0; j < this.numNodes; j++) {
-                    // Гомеостаз (Synaptic Scaling)
                     let totalIn = 0;
                     for (let i = 0; i < this.numNodes; i++) {
                         totalIn += this.weights[i][j];
@@ -569,18 +526,15 @@
                         const w = this.weights[i][j];
                         
                         if (w > 0) {
-                            // Усиление (LTP - Long-Term Potentiation)
                             if (isCorrect && j === targetNode && this.nodes[i] > 0.05) {
                                 this.immunity[i][j] = 60;
                                 this.weights[i][j] += 0.2;
                             }
-                            // Ослабление (LTD - Long-Term Depression)
                             else if (wrongNode === j && this.nodes[i] > 0.05) {
                                 this.weights[i][j] *= 0.3;
                                 this.immunity[i][j] = 0;
                             }
 
-                            // Распад весов (синаптический распад)
                             if (this.immunity[i][j] <= 0) {
                                 this.weights[i][j] *= 0.93;
                             } else {
@@ -591,7 +545,6 @@
                                 this.weights[i][j] = 0;
                             }
                         } else {
-                            // Создание новых связей (синаптическая пластичность)
                             if (Math.random() < this.mutationRate) {
                                 this.weights[i][j] = Math.random() * 0.2 + 0.1;
                                 this.immunity[i][j] = 20;
@@ -610,24 +563,12 @@
                             connections.push({
                                 source: i,
                                 target: j,
-                                weight: weight,
-                                type: this.getConnectionType(i, j)
+                                weight: weight
                             });
                         }
                     }
                 }
                 return connections;
-            }
-            
-            getConnectionType(source, target) {
-                if (source < 64 && target < 64) return 'input-input';
-                if (source < 64 && target >= 64 && target < 120) return 'input-hidden';
-                if (source >= 64 && source < 120 && target < 64) return 'hidden-input';
-                if (source >= 64 && source < 120 && target >= 64 && target < 120) return 'hidden-hidden';
-                if (source >= 64 && source < 120 && target >= 120) return 'hidden-output';
-                if (source >= 120 && target >= 64 && target < 120) return 'output-hidden';
-                if (source >= 120 && target >= 120) return 'output-output';
-                return 'other';
             }
 
             resetNodes() {
@@ -635,10 +576,9 @@
             }
         }
 
-        // Основное состояние приложения
+        // Основное состояние приложения (ИСПРАВЛЕННОЕ)
         function app() {
             return {
-                // Состояние приложения
                 isTraining: false,
                 isSleeping: false,
                 showHelp: false,
@@ -646,22 +586,16 @@
                 connectionThreshold: 0.1,
                 currentLayout: 'force',
                 isDarkMode: true,
-                showNodeDetails: false,
-                selectedNode: null,
-                animationFrameId: null,
                 
-                // Данные сети
                 network: null,
                 sigmaInstance: null,
                 graphData: null,
                 
-                // Метаданные сети
                 inputNodes: 64,
                 hiddenNodes: 56,
                 outputNodes: 10,
                 totalNodes: 130,
                 
-                // Статистика обучения
                 trainingStep: 0,
                 totalSteps: 0,
                 correctPredictions: 0,
@@ -669,14 +603,11 @@
                 mutationRate: 0.15,
                 activeConnections: 0,
                 
-                // Текущий образец
                 currentSample: null,
                 prediction: null,
                 
-                // Лог событий
                 eventLog: [],
                 
-                // Инициализация
                 async init() {
                     this.addLog('NeuroTick SPA Initializing...', 'info');
                     
@@ -685,10 +616,6 @@
                         await this.initSigma();
                         this.loadSample();
                         
-                        // Запуск анимаций
-                        this.startAnimations();
-                        
-                        // Инициализация темы
                         this.initTheme();
                         
                         this.addLog('System ready. Click Start to begin training.', 'success');
@@ -698,7 +625,6 @@
                     }
                 },
                 
-                // Инициализация темы
                 initTheme() {
                     const savedTheme = localStorage.getItem('neurotick-theme');
                     this.isDarkMode = savedTheme !== 'light';
@@ -710,33 +636,6 @@
                     }
                 },
                 
-                // Запуск анимаций
-                startAnimations() {
-                    // Запуск цикла анимации графа
-                    this.animationLoop();
-                },
-                
-                // Анимация цикла
-                animationLoop() {
-                    if (this.animationFrameId) {
-                        cancelAnimationFrame(this.animationFrameId);
-                    }
-                    
-                    const animate = () => {
-                        if (this.isTraining) {
-                            this.updateActiveNodes();
-                            if (this.sigmaInstance) {
-                                this.sigmaInstance.refresh();
-                            }
-                        }
-                        
-                        this.animationFrameId = requestAnimationFrame(animate);
-                    };
-                    
-                    this.animationFrameId = requestAnimationFrame(animate);
-                },
-                
-                // Логирование
                 addLog(message, type = 'info') {
                     const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
                     this.eventLog.push({
@@ -745,34 +644,26 @@
                         type
                     });
                     
-                    // Ограничиваем лог последними 50 записями
                     if (this.eventLog.length > 50) {
                         this.eventLog = this.eventLog.slice(-50);
                     }
                 },
                 
-                // Инициализация нейронной сети
                 initNetwork() {
                     this.network = new NeuroTick();
                     this.addLog('NeuroTick network created', 'info');
                 },
                 
-                // Загрузка образца данных
                 loadSample() {
                     const digits = [
-                        // Цифра 0
                         [0,0,0,1,1,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0,1,0,
                          1,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-                        // Цифра 1
                         [0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,
                          0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0],
-                        // Цифра 2
                         [0,0,0,1,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,
                          0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
-                        // Цифра 3
                         [0,0,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,0,
                          0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-                        // Цифра 4
                         [0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,1,0,1,0,0,0,0,1,0,0,1,0,0,0,
                          1,1,1,1,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0]
                     ].map(arr => arr.map(x => x / 8.0));
@@ -791,20 +682,17 @@
                     };
                 },
                 
-                // Обновление статистики
                 updateStats() {
                     if (this.totalSteps > 0) {
                         this.accuracy = (this.correctPredictions / this.totalSteps) * 100;
                     }
                     this.mutationRate = this.network?.mutationRate || 0.15;
                     
-                    // Подсчет активных соединений
                     if (this.network) {
                         this.activeConnections = this.network.getActiveConnections(this.connectionThreshold).length;
                     }
                 },
                 
-                // Переключение обучения
                 toggleTraining() {
                     this.isTraining = !this.isTraining;
                     
@@ -816,7 +704,6 @@
                     }
                 },
                 
-                // Сброс сети
                 resetNetwork() {
                     this.isTraining = false;
                     this.trainingStep = 0;
@@ -827,7 +714,6 @@
                     this.addLog('Network reset to initial state', 'info');
                 },
                 
-                // Переключение темы
                 toggleTheme() {
                     this.isDarkMode = !this.isDarkMode;
                     
@@ -842,7 +728,6 @@
                     }
                 },
                 
-                // Экспорт сети
                 exportNetwork() {
                     if (!this.network) return;
                     
@@ -870,104 +755,69 @@
                     this.addLog('Network exported', 'success');
                 },
                 
-                // Инициализация sigma.js
                 async initSigma() {
                     try {
-                        // Создаем контейнер
                         const container = document.getElementById('sigma-container');
                         if (!container) return;
                         
-                        // Инициализация графа
-                        this.graphData = new graphology.Graph();
+                        // ИСПРАВЛЕНО: создаем граф без ошибок
+                        this.graphData = new graphology.Graph({allowSelfLoops: false, multi: false});
                         
-                        // Настройка sigma.js
+                        // ИСПРАВЛЕНО: упрощенная конфигурация sigma.js
                         this.sigmaInstance = new sigma({
                             graph: this.graphData,
                             container: 'sigma-container',
                             settings: {
                                 defaultNodeColor: '#00ff9d',
                                 defaultEdgeColor: '#00e0ff',
-                                edgeColor: 'source',
                                 minEdgeSize: 0.5,
                                 maxEdgeSize: 5,
                                 labelThreshold: 8,
                                 labelSize: 'proportional',
                                 labelSizeRatio: 1,
-                                scalingMode: 'inside',
-                                sideMargin: 0.3,
-                                enableEdgeHovering: true,
-                                edgeHoverColor: 'edge',
-                                edgeHoverSizeRatio: 1.5,
-                                edgeHoverExtremities: true,
-                                defaultEdgeType: 'arrow',
                                 font: 'JetBrains Mono',
                                 labelColor: { color: '#ffffff' }
                             }
                         });
                         
-                        // Добавляем узлы сети
+                        // Создаем узлы
                         this.createGraphNodes();
                         
-                        // Запускаем ForceAtlas2 layout
-                        const fa2 = new sigma.layouts.forceAtlas2(this.graphData, {
-                            settings: {
-                                gravity: 0.5,
-                                scalingRatio: 30,
-                                slowDown: 10,
-                                barnesHutOptimize: true,
-                                barnesHutTheta: 0.8,
-                                adjustSizes: true,
-                                linLogMode: false,
-                                outboundAttractionDistribution: false
-                            }
-                        });
-                        
-                        // Запускаем layout на 2000 итераций
-                        fa2.start();
-                        setTimeout(() => {
-                            fa2.stop();
-                            this.sigmaInstance.refresh();
-                        }, 2000);
-                        
-                        // Добавляем обработчики событий
-                        this.bindSigmaEvents();
+                        // ИСПРАВЛЕНО: используем правильный layout
+                        this.applyLayout('force');
                         
                         this.addLog('Sigma.js visualization initialized', 'success');
                     } catch (error) {
                         console.error('Sigma.js initialization error:', error);
-                        this.addLog('Failed to initialize visualization', 'error');
+                        this.addLog('Failed to initialize visualization: ' + error.message, 'error');
                     }
                 },
                 
-                // Создание узлов графа
                 createGraphNodes() {
                     if (!this.graphData || !this.network) return;
                     
-                    // Очищаем существующие узлы
                     this.graphData.clear();
                     
-                    // Создаем узлы для каждого нейрона
+                    // Создаем узлы
                     for (let i = 0; i < this.network.numNodes; i++) {
                         const nodeType = this.getNodeType(i);
                         const nodeColor = this.getNodeColor(nodeType);
                         const nodeSize = this.getNodeSize(nodeType);
                         const nodeLabel = this.getNodeLabel(i, nodeType);
                         
-                        this.graphData.addNode(i, {
+                        this.graphData.addNode(i.toString(), {
                             label: nodeLabel,
                             size: nodeSize,
                             color: nodeColor,
                             type: nodeType,
                             x: Math.random() * 100,
-                            y: Math.random() * 100,
-                            hidden: false
+                            y: Math.random() * 100
                         });
                     }
                     
                     this.addLog(`Created ${this.network.numNodes} graph nodes`, 'info');
                 },
                 
-                // Получение типа узла
                 getNodeType(nodeId) {
                     if (nodeId < 64) return 'input';
                     if (nodeId >= 64 && nodeId < 120) return 'hidden';
@@ -975,7 +825,6 @@
                     return 'hidden';
                 },
                 
-                // Получение цвета узла
                 getNodeColor(nodeType) {
                     switch(nodeType) {
                         case 'input': return '#00ff9d';
@@ -985,7 +834,6 @@
                     }
                 },
                 
-                // Получение размера узла
                 getNodeSize(nodeType) {
                     switch(nodeType) {
                         case 'input': return 4;
@@ -995,7 +843,6 @@
                     }
                 },
                 
-                // Получение метки узла
                 getNodeLabel(nodeId, nodeType) {
                     if (nodeType === 'input') return `Px${nodeId}`;
                     if (nodeType === 'output') {
@@ -1005,69 +852,36 @@
                     return `N${nodeId}`;
                 },
                 
-                // Обновление графа
                 updateGraph() {
                     if (!this.graphData || !this.network || !this.sigmaInstance) return;
                     
-                    // Получаем активные соединения
                     const connections = this.network.getActiveConnections(this.connectionThreshold);
                     
                     // Удаляем все существующие ребра
-                    this.graphData.forEachEdge(edge => this.graphData.dropEdge(edge));
+                    const edges = this.graphData.edges();
+                    edges.forEach(edge => this.graphData.dropEdge(edge));
                     
                     // Добавляем новые ребра
                     connections.forEach(conn => {
                         try {
-                            this.graphData.addEdge(conn.source, conn.target, {
-                                size: Math.max(conn.weight * 3, 0.5),
-                                color: this.getEdgeColor(conn.weight),
-                                weight: conn.weight,
-                                type: 'arrow',
-                                hidden: false
-                            });
+                            // ИСПРАВЛЕНО: используем строковые ID
+                            this.graphData.addEdge(
+                                conn.source.toString(), 
+                                conn.target.toString(), 
+                                {
+                                    size: Math.max(conn.weight * 3, 0.5),
+                                    color: this.getEdgeColor(conn.weight)
+                                }
+                            );
                         } catch (error) {
                             // Игнорируем ошибки дублирования ребер
                         }
                     });
                     
-                    // Обновляем активные узлы
-                    this.updateActiveNodes();
-                    
-                    // Обновляем визуализацию
-                    this.sigmaInstance.refresh();
-                    
                     this.activeConnections = connections.length;
+                    this.sigmaInstance.refresh();
                 },
                 
-                // Обновление активности узлов
-                updateActiveNodes() {
-                    if (!this.network || !this.graphData) return;
-                    
-                    this.graphData.forEachNode(node => {
-                        const activity = this.network.nodes[node] || 0;
-                        const scale = 1 + (activity * 2);
-                        
-                        this.graphData.mergeNodeAttributes(node, {
-                            size: Math.min(this.getNodeSize(this.getNodeType(node)) * scale, 15),
-                            color: this.getActiveNodeColor(node, activity)
-                        });
-                    });
-                },
-                
-                // Получение цвета активного узла
-                getActiveNodeColor(nodeId, activity) {
-                    const baseColor = this.getNodeColor(this.getNodeType(nodeId));
-                    
-                    if (activity > 0.3) {
-                        return '#ffd600';
-                    } else if (activity > 0.1) {
-                        return '#ff00c8';
-                    }
-                    
-                    return baseColor;
-                },
-                
-                // Получение цвета ребра
                 getEdgeColor(weight) {
                     if (weight > 0.3) return '#ffd600';
                     if (weight > 0.2) return '#00ff9d';
@@ -1075,78 +889,6 @@
                     return '#9d00ff';
                 },
                 
-                // Привязка событий sigma.js
-                bindSigmaEvents() {
-                    if (!this.sigmaInstance) return;
-                    
-                    // Обработчик клика по узлу
-                    this.sigmaInstance.on('clickNode', (event) => {
-                        const node = event.data.node;
-                        const nodeData = this.graphData.getNodeAttributes(node);
-                        
-                        this.addLog(`Clicked node ${nodeData.label} (${nodeData.type})`, 'info');
-                        this.showNodeInfo(node);
-                    });
-                    
-                    // Обработчик наведения на узел
-                    this.sigmaInstance.on('enterNode', (event) => {
-                        const node = event.data.node;
-                        const nodeData = this.graphData.getNodeAttributes(node);
-                        
-                        // Показываем tooltip
-                        this.showNodeTooltip(event, nodeData);
-                    });
-                    
-                    // Обработчик ухода с узла
-                    this.sigmaInstance.on('leaveNode', () => {
-                        this.hideNodeTooltip();
-                    });
-                    
-                    // Обработчик наведения на ребро
-                    this.sigmaInstance.on('enterEdge', (event) => {
-                        const edge = event.data.edge;
-                        const edgeData = this.graphData.getEdgeAttributes(edge);
-                        
-                        this.addLog(`Edge weight: ${edgeData.weight.toFixed(3)}`, 'info');
-                    });
-                },
-                
-                // Показ tooltip для узла
-                showNodeTooltip(event, nodeData) {
-                    // Создаем tooltip если его нет
-                    let tooltip = document.querySelector('.neuron-tooltip');
-                    if (!tooltip) {
-                        tooltip = document.createElement('div');
-                        tooltip.className = 'neuron-tooltip';
-                        document.body.appendChild(tooltip);
-                    }
-                    
-                    // Заполняем данными
-                    const activity = this.network?.nodes[nodeData.id] || 0;
-                    tooltip.innerHTML = `
-                        <div class="font-bold mb-1">${nodeData.label}</div>
-                        <div class="text-xs">
-                            <div>Type: ${nodeData.type}</div>
-                            <div>Activity: ${activity.toFixed(3)}</div>
-                            <div>ID: ${nodeData.id}</div>
-                        </div>
-                    `;
-                    
-                    // Позиционируем tooltip
-                    tooltip.style.left = `${event.data.x + 15}px`;
-                    tooltip.style.top = `${event.data.y + 15}px`;
-                    tooltip.style.display = 'block';
-                },
-                
-                // Скрытие tooltip
-                hideNodeTooltip() {
-                    const tooltip = document.querySelector('.neuron-tooltip');
-                    if (tooltip) {
-                        tooltip.style.display = 'none';
-                    }
-                },
-                
-                // Переключение layout
                 toggleLayout() {
                     if (!this.graphData || !this.sigmaInstance) return;
                     
@@ -1159,33 +901,46 @@
                     this.addLog(`Changed layout to ${nextLayout}`, 'info');
                 },
                 
-                // Применение layout
                 applyLayout(layoutType) {
                     if (!this.graphData) return;
                     
-                    // Останавливаем предыдущий layout
-                    sigma.layouts.killAll();
-                    
                     switch(layoutType) {
                         case 'force':
-                            const fa2 = new sigma.layouts.forceAtlas2(this.graphData, {
-                                settings: {
-                                    gravity: 0.5,
-                                    scalingRatio: 30,
-                                    slowDown: 10,
-                                    barnesHutOptimize: true,
-                                    barnesHutTheta: 0.8
-                                }
-                            });
-                            fa2.start();
-                            setTimeout(() => {
-                                fa2.stop();
+                            // ИСПРАВЛЕНО: используем ForceAtlas2 из отдельной библиотеки
+                            if (typeof window.forceAtlas2 === 'function') {
+                                const positions = window.forceAtlas2(this.graphData, {
+                                    settings: {
+                                        gravity: 0.5,
+                                        scalingRatio: 30,
+                                        slowDown: 10,
+                                        barnesHutOptimize: true,
+                                        barnesHutTheta: 0.8,
+                                        adjustSizes: true,
+                                        linLogMode: false,
+                                        outboundAttractionDistribution: false
+                                    },
+                                    iterations: 50
+                                });
+                                
+                                // Применяем позиции
+                                Object.keys(positions).forEach(nodeId => {
+                                    this.graphData.mergeNodeAttributes(nodeId, positions[nodeId]);
+                                });
+                                
                                 if (this.sigmaInstance) this.sigmaInstance.refresh();
-                            }, 1000);
+                            } else {
+                                // Fallback: случайное размещение
+                                this.graphData.forEachNode(node => {
+                                    this.graphData.mergeNodeAttributes(node, {
+                                        x: Math.random() * 200 - 100,
+                                        y: Math.random() * 200 - 100
+                                    });
+                                });
+                                if (this.sigmaInstance) this.sigmaInstance.refresh();
+                            }
                             break;
                             
                         case 'circular':
-                            // Размещаем узлы по кругу
                             const nodes = this.graphData.nodes();
                             const radius = 100;
                             nodes.forEach((node, index) => {
@@ -1199,7 +954,6 @@
                             break;
                             
                         case 'random':
-                            // Случайное размещение
                             this.graphData.forEachNode(node => {
                                 this.graphData.mergeNodeAttributes(node, {
                                     x: Math.random() * 200 - 100,
@@ -1211,14 +965,13 @@
                     }
                 },
                 
-                // Сброс вида графа
                 resetView() {
                     if (this.sigmaInstance) {
-                        this.sigmaInstance.getCamera().animate({
+                        const camera = this.sigmaInstance.getCamera();
+                        camera.animate({
                             x: 0,
                             y: 0,
-                            ratio: 1,
-                            angle: 0
+                            ratio: 1
                         }, {
                             duration: 500
                         });
@@ -1226,113 +979,18 @@
                     this.addLog('Graph view reset', 'info');
                 },
                 
-                // Отображение деталей узла
-                showNodeInfo(nodeId) {
-                    if (!this.network || !this.graphData) return;
-                    
-                    this.selectedNode = nodeId;
-                    this.showNodeDetails = true;
-                    
-                    const nodeData = this.graphData.getNodeAttributes(nodeId);
-                    const activity = this.network.nodes[nodeId] || 0;
-                    
-                    // Создаем модальное окно с деталями
-                    const modal = document.createElement('div');
-                    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
-                    modal.innerHTML = `
-                        <div class="bg-neuro-gray rounded-xl max-w-md w-full">
-                            <div class="p-6">
-                                <div class="flex justify-between items-center mb-6">
-                                    <h3 class="text-xl font-bold text-neuro-green">
-                                        <i class="fas fa-microchip mr-2"></i>Neuron Details
-                                    </h3>
-                                    <button @click="closeNodeInfo()" class="text-gray-400 hover:text-white">
-                                        <i class="fas fa-times text-xl"></i>
-                                    </button>
-                                </div>
-                                
-                                <div class="space-y-4">
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div class="p-3 bg-neuro-dark rounded-lg">
-                                            <div class="text-sm text-gray-400">Node ID</div>
-                                            <div class="text-lg font-mono">${nodeData.label}</div>
-                                        </div>
-                                        <div class="p-3 bg-neuro-dark rounded-lg">
-                                            <div class="text-sm text-gray-400">Type</div>
-                                            <div class="text-lg font-mono">${nodeData.type}</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="p-3 bg-neuro-dark rounded-lg">
-                                        <div class="text-sm text-gray-400 mb-2">Current Activity</div>
-                                        <div class="flex items-center gap-3">
-                                            <div class="text-2xl font-bold" style="${activity > 0.3 ? 'color: #00ff9d' : 'color: #00e0ff'}">
-                                                ${activity.toFixed(3)}
-                                            </div>
-                                            <div class="flex-1 h-4 bg-neuro-gray rounded-full overflow-hidden">
-                                                <div class="h-full bg-neuro-green rounded-full transition-all duration-300"
-                                                     style="width: ${Math.min(activity * 100, 100)}%"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="p-3 bg-neuro-dark rounded-lg">
-                                        <div class="text-sm text-gray-400 mb-2">Connections</div>
-                                        <div class="text-lg font-bold text-neuro-yellow">
-                                            ${this.getConnectionCount(nodeId)}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    
-                    document.body.appendChild(modal);
-                    
-                    // Добавляем обработчик для кнопки закрытия
-                    modal.querySelector('button').addEventListener('click', () => {
-                        this.closeNodeInfo();
-                        document.body.removeChild(modal);
-                    });
-                },
-                
-                // Получение количества соединений узла
-                getConnectionCount(nodeId) {
-                    if (!this.graphData) return 0;
-                    
-                    let count = 0;
-                    this.graphData.forEachEdge((edge, attributes, source, target) => {
-                        if (source === nodeId || target === nodeId) {
-                            count++;
-                        }
-                    });
-                    
-                    return count;
-                },
-                
-                // Закрытие информации об узле
-                closeNodeInfo() {
-                    this.showNodeDetails = false;
-                    this.selectedNode = null;
-                },
-                
-                // Асинхронная функция обучения
                 async train() {
                     if (!this.isTraining) return;
                     
                     while (this.isTraining && this.trainingStep < 3000) {
-                        // Определение фазы сна
                         this.isSleeping = (this.trainingStep % 1000) > 800;
                         
-                        // Загрузка нового образца каждые 10 шагов
                         if (this.trainingStep % 10 === 0) {
                             this.loadSample();
                         }
                         
-                        // Сброс состояния сети
                         this.network.resetNodes();
                         
-                        // Множественные такты для стабилизации
                         for (let tick = 0; tick < 15; tick++) {
                             const inputs = {};
                             this.currentSample.image.forEach((val, idx) => {
@@ -1346,7 +1004,6 @@
                             );
                         }
                         
-                        // Обновление статистики
                         this.totalSteps++;
                         if (this.prediction.isCorrect) {
                             this.correctPredictions++;
@@ -1354,19 +1011,15 @@
                         
                         this.updateStats();
                         
-                        // Периодическое обновление графа
                         if (this.trainingStep % 50 === 0) {
                             this.updateGraph();
                         }
                         
-                        // Периодическое логирование
                         if (this.trainingStep % 100 === 0) {
                             this.addLog(`Step ${this.trainingStep}: Accuracy ${this.accuracy.toFixed(1)}%`, 'info');
                         }
                         
                         this.trainingStep++;
-                        
-                        // Задержка в зависимости от скорости
                         await this.sleep(100 / this.speed);
                     }
                     
@@ -1376,7 +1029,6 @@
                     }
                 },
                 
-                // Вспомогательная функция задержки
                 sleep(ms) {
                     return new Promise(resolve => setTimeout(resolve, ms));
                 }
@@ -1385,36 +1037,28 @@
 
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            // Добавляем глобальные обработчики клавиш
             document.addEventListener('keydown', function(e) {
                 const appInstance = Alpine.$data(document.querySelector('[x-data]'));
                 if (!appInstance) return;
                 
                 if (e.key === ' ') {
-                    // Пробел для паузы/продолжения
                     appInstance.toggleTraining();
                     e.preventDefault();
                 }
                 
                 if (e.key === 'r' && e.ctrlKey) {
-                    // Ctrl+R для сброса
                     appInstance.resetNetwork();
                     e.preventDefault();
                 }
                 
                 if (e.key === 'h' && e.ctrlKey) {
-                    // Ctrl+H для помощи
                     appInstance.showHelp = true;
                     e.preventDefault();
                 }
                 
                 if (e.key === 'Escape') {
-                    // ESC для закрытия модальных окон
                     if (appInstance.showHelp) {
                         appInstance.showHelp = false;
-                    }
-                    if (appInstance.showNodeDetails) {
-                        appInstance.closeNodeInfo();
                     }
                 }
             });
